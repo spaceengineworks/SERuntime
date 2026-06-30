@@ -24,6 +24,10 @@ find_package(EnTT CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(Jolt CONFIG REQUIRED)
 
+# add_subdirectory(src/Physics)
+add_subdirectory(src/Render)
+# add_subdirectory(src/דדECS)
+
 set(COMMON_SOURCES
     src/SERuntime.cpp
 )
@@ -39,8 +43,10 @@ set_target_properties(SERuntime PROPERTIES
 )
 
 target_link_libraries(SERuntime PRIVATE
-    Vulkan::Vulkan
-    unofficial::shaderc::shaderc
+    Render
+    # Physics
+    # ECS
+
     EnTT::EnTT
     glm::glm
     Jolt::Jolt
