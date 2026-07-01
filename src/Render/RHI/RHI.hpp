@@ -4,23 +4,31 @@
 namespace SE
 {
 
+enum SeRenderType
+{
+    Vulkan
+};
+
+using SeRender = SeRenderType;
+
 enum SeResultInternals
 {
     SE_SUCCESS = 0,
     SE_FAILED  = 1
 };
 
-using SeResult = SeResultInternals;
+using SeResult       = SeResultInternals;
+using SeRenderHandle = void*;
 
 class RHI
 {
    public:
-    struct Config
-    {
-    };
-
-    virtual ~RHI()                                    = default;
-    virtual SeResult initConfig(const Config& config) = 0;
+    virtual ~RHI()                      = default;
+    virtual SeRenderHandle passConfig() = 0;
+    // virtual SeResult        CreateViewPortImage()        = 0;
+    // virtual SeResult        createOffscreenRenderPass()  = 0;
+    // virtual SeResult        createOffscreenFramebuffer() = 0;
+    // virtual SeResult        registerAsTexture()          = 0;
 };
 }  // namespace SE
 

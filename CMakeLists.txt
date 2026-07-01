@@ -26,13 +26,15 @@ find_package(Jolt CONFIG REQUIRED)
 
 # add_subdirectory(src/Physics)
 add_subdirectory(src/Render)
-# add_subdirectory(src/דדECS)
+# add_subdirectory(src/ECS)
 
 set(COMMON_SOURCES
     src/SERuntime.cpp
 )
 
 add_library(SERuntime SHARED ${COMMON_SOURCES})
+
+target_include_directories(SERuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_compile_definitions(SERuntime PRIVATE SERUNTIME_EXPORTS)
  

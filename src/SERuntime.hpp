@@ -1,4 +1,9 @@
-#pragma once
+#ifndef SERUNTIME_H
+#define SERUNTIME_H
+
+#include <memory>
+
+#include "Render/RHI/RHI.hpp"
 
 #if defined(_WIN32) || defined(_WIN64)
 
@@ -20,7 +25,18 @@
 
 namespace SE
 {
-class SERuntine
+
+class SERUNTIME_API SERuntine
 {
+   public:
+    SERuntine(SeRender render);
+    ~SERuntine();
+
+    SeRenderHandle SeAskConfig();
+
+   private:
+    std::unique_ptr<RHI> m_hardware = nullptr;
 };
 }  // namespace SE
+
+#endif /* SERUNTIME_H */
