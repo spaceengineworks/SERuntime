@@ -1,11 +1,404 @@
 #include "RHI/Vulkan/VulkanDevice.hpp"
 
+#include <tracy/Tracy.hpp>
 namespace SE
+
 {
 
 VulkanDevice::VulkanDevice()
 {
     m_config = std::make_unique<SharedVulkanConfig>();
+}
+
+VulkanDevice::~VulkanDevice()
+{
+    // if (m_config && *m_config->device != VK_NULL_HANDLE)
+    // {
+    //     VkDevice device = *m_config->device;
+
+    //     if (!m_commandBuffers.empty() && *m_config->commandPool != VK_NULL_HANDLE)
+    //     {
+    //         vkFreeCommandBuffers(device, *m_config->commandPool,
+    //                              static_cast<uint32_t>(m_commandBuffers.size()),
+    //                              m_commandBuffers.data());
+    //     }
+
+    //     for (auto framebuffer : m_viewPortFramebuffers)
+    //     {
+    //         if (framebuffer != VK_NULL_HANDLE)
+    //         {
+    //             vkDestroyFramebuffer(device, framebuffer, nullptr);
+    //         }
+    //     }
+
+    //     if (m_renderPass != VK_NULL_HANDLE)
+    //     {
+    //         vkDestroyRenderPass(device, m_renderPass, nullptr);
+    //     }
+
+    //     for (auto& vp : m_viewPort)
+    //     {
+    //         // if (vp.imageView != VK_NULL_HANDLE)
+    //         //     vkDestroyImageView(device, vp.imageView, nullptr);
+    //         // if (vp.image != VK_NULL_HANDLE)
+    //         //     vkDestroyImage(device, vp.image, nullptr);
+    //         // if (vp.imageMemory != VK_NULL_HANDLE)
+    //         //     vkFreeMemory(device, vp.imageMemory, nullptr);
+    //     }
+    // }
+}
+
+void VulkanDevice::CreateViewPortImage(uint32_t width, uint32_t height)
+{
+    m_viewPortWidth  = width;
+    m_viewPortHeight = height;
+
+    m_sampler = getOrCreateDefaultSampler();
+
+    if (m_viewPort.empty())
+    {
+        m_viewPort.resize(*m_config->frame_in_flight);
+    }
+
+    for (uint32_t i = 0; i < *m_config->frame_in_flight; i++)
+    {
+        VkImageCreateInfo imageInfo {};
+        imageInfo.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.imageType     = VK_IMAGE_TYPE_2D;
+        imageInfo.extent        = {width, height, 1};
+        imageInfo.mipLevels     = 1;
+        imageInfo.arrayLayers   = 1;
+        imageInfo.format        = VK_FORMAT_R8G8B8A8_UNORM;
+        imageInfo.tiling        = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        imageInfo.usage         = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        imageInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+
+        vkCreateImage(*m_config->device, &imageInfo, nullptr, &m_viewPort[i].image);
+
+        VkMemoryRequirements memReq;
+        vkGetImageMemoryRequirements(*m_config->device, m_viewPort[i].image, &memReq);
+
+        VkMemoryAllocateInfo allocInfo {};
+        allocInfo.sType          = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memReq.size;
+        allocInfo.memoryTypeIndex =
+            findMemoryType(memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        vkAllocateMemory(*m_config->device, &allocInfo, nullptr, &m_viewPort[i].imageMemory);
+        vkBindImageMemory(*m_config->device, m_viewPort[i].image, m_viewPort[i].imageMemory, 0);
+
+        VkImageViewCreateInfo createInfo {};
+        createInfo.sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        createInfo.image      = m_viewPort[i].image;
+        createInfo.viewType   = VK_IMAGE_VIEW_TYPE_2D;
+        createInfo.format     = VK_FORMAT_R8G8B8A8_UNORM;
+        createInfo.components = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
+                                 VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
+        createInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        createInfo.subresourceRange.baseMipLevel   = 0;
+        createInfo.subresourceRange.levelCount     = 1;
+        createInfo.subresourceRange.baseArrayLayer = 0;
+        createInfo.subresourceRange.layerCount     = 1;
+
+        if (vkCreateImageView(*m_config->device, &createInfo, nullptr, &m_viewPort[i].imageView)
+            != VK_SUCCESS)
+            throw std::runtime_error("failed to create viewport image view!");
+    }
+}
+
+void VulkanDevice::viewPortCommandBuffer()
+{
+    uint32_t framesInFlight = *m_config->frame_in_flight;
+    m_commandBuffers.resize(framesInFlight);
+
+    VkCommandBufferAllocateInfo memAllocInfo {};
+    memAllocInfo.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    memAllocInfo.commandPool        = *m_config->commandPool;
+    memAllocInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    memAllocInfo.commandBufferCount = framesInFlight;
+
+    if (vkAllocateCommandBuffers(*m_config->device, &memAllocInfo, m_commandBuffers.data())
+        != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to allocate offscreen command buffers!");
+    }
+}
+
+uint32_t VulkanDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(*m_config->physicalDevice, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+        if (typeFilter & (1 << i)
+            && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+            return i;
+
+    throw std::runtime_error("failed to find suitable memory type!");
+}
+
+void VulkanDevice::createOffscreenFramebuffer()
+{
+    m_viewPortFramebuffers.resize(m_viewPort.size());
+
+    for (size_t i = 0; i < m_viewPort.size(); i++)
+    {
+        VkImageView attachments[] = {m_viewPort[i].imageView};
+
+        VkFramebufferCreateInfo framebufferInfo {};
+        framebufferInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass      = m_renderPass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments    = attachments;
+        framebufferInfo.width           = m_viewPortWidth;
+        framebufferInfo.height          = m_viewPortHeight;
+        framebufferInfo.layers          = 1;
+
+        if (vkCreateFramebuffer(*m_config->device, &framebufferInfo, nullptr,
+                                &m_viewPortFramebuffers[i])
+            != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create framebuffer!");
+        }
+    }
+}
+
+void VulkanDevice::createOffscreenRenderPass()
+{
+    VkAttachmentDescription colorAttachment {};
+    colorAttachment.format  = VK_FORMAT_R8G8B8A8_UNORM;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+
+    colorAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkAttachmentReference colorAttachmentRef {};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass {};
+    subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments    = &colorAttachmentRef;
+
+    std::array<VkSubpassDependency, 2> dependencies;
+
+    dependencies[0].srcSubpass      = VK_SUBPASS_EXTERNAL;
+    dependencies[0].dstSubpass      = 0;
+    dependencies[0].srcStageMask    = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    dependencies[0].srcAccessMask   = VK_ACCESS_SHADER_READ_BIT;
+    dependencies[0].dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependencies[0].dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    dependencies[1].srcSubpass      = 0;
+    dependencies[1].dstSubpass      = VK_SUBPASS_EXTERNAL;
+    dependencies[1].srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependencies[1].srcAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependencies[1].dstStageMask    = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    dependencies[1].dstAccessMask   = VK_ACCESS_SHADER_READ_BIT;
+    dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    VkRenderPassCreateInfo renderPassInfo {};
+    renderPassInfo.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments    = &colorAttachment;
+    renderPassInfo.subpassCount    = 1;
+    renderPassInfo.pSubpasses      = &subpass;
+    renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+    renderPassInfo.pDependencies   = dependencies.data();
+
+    if (vkCreateRenderPass(*m_config->device, &renderPassInfo, nullptr, &m_renderPass)
+        != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create render pass!");
+    }
+}
+
+//  -------------------- //
+
+void VulkanDevice::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+{
+    ZoneScopedN("VulkanDevice::recordCommandBuffer");
+    VkCommandBufferBeginInfo beginInfo {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to begin recording command buffer!");
+    }
+
+    VkRenderPassBeginInfo renderPassInfo {};
+    renderPassInfo.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass        = m_renderPass;
+    renderPassInfo.framebuffer       = m_viewPortFramebuffers[imageIndex];
+    renderPassInfo.renderArea.offset = {0, 0};
+
+    renderPassInfo.renderArea.extent = {m_viewPortWidth, m_viewPortHeight};
+
+    VkClearValue clearColor = {
+        {{m_clearColor[0], m_clearColor[1], m_clearColor[2], m_clearColor[3]}}};
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues    = &clearColor;
+
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    // vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+    // *m_config->graphicsPipeline);
+
+    VkViewport viewport {};
+    viewport.x        = 0.0f;
+    viewport.y        = 0.0f;
+    viewport.width    = (float) m_viewPortWidth;
+    viewport.height   = (float) m_viewPortHeight;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor {};
+    scissor.offset = {0, 0};
+    scissor.extent = {m_viewPortWidth, m_viewPortHeight};
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+    vkCmdEndRenderPass(commandBuffer);
+
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to record command buffer!");
+    }
+}
+
+void VulkanDevice::updateAndRender()
+{
+    ZoneScopedN("VulkanDevice::updateAndRender");
+    if (m_viewPortWidth <= 0 || m_viewPortHeight <= 0)
+        return;
+
+    uint32_t currentFrame = *m_config->currentFrame;
+
+    {
+        ZoneScopedN("vkWaitForFences (SE)");
+        vkWaitForFences(*m_config->device, 1, &m_inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+        vkResetFences(*m_config->device, 1, &m_inFlightFences[currentFrame]);
+    }
+
+    VkCommandBuffer cmdBuf = m_commandBuffers[currentFrame];
+    vkResetCommandBuffer(cmdBuf, 0);
+    recordCommandBuffer(cmdBuf, currentFrame);
+
+    VkSubmitInfo submitInfo {};
+    submitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers    = &cmdBuf;
+
+    vkQueueSubmit(*m_config->graphicsQueue, 1, &submitInfo, m_inFlightFences[currentFrame]);
+}
+
+void VulkanDevice::createSyncObjects()
+{
+    uint32_t framesInFlight = *m_config->frame_in_flight;
+    m_inFlightFences.resize(framesInFlight);
+
+    VkFenceCreateInfo fenceInfo {};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    for (auto& fence : m_inFlightFences)
+        vkCreateFence(*m_config->device, &fenceInfo, nullptr, &fence);
+}
+
+void VulkanDevice::cleanUp()
+{
+    vkDeviceWaitIdle(*m_config->device);
+
+    if (m_config && *m_config->device != VK_NULL_HANDLE)
+    {
+        VkDevice device = *m_config->device;
+
+        if (m_sampler != VK_NULL_HANDLE)
+        {
+            vkDestroySampler(device, m_sampler, nullptr);
+            m_sampler = VK_NULL_HANDLE;
+        }
+        for (auto& fence : m_inFlightFences)
+        {
+            if (fence != VK_NULL_HANDLE)
+                vkDestroyFence(device, fence, nullptr);
+        }
+        m_inFlightFences.clear();
+
+        if (!m_commandBuffers.empty() && *m_config->commandPool != VK_NULL_HANDLE)
+        {
+            vkFreeCommandBuffers(device, *m_config->commandPool,
+                                 static_cast<uint32_t>(m_commandBuffers.size()),
+                                 m_commandBuffers.data());
+            m_commandBuffers.clear();
+        }
+
+        for (auto framebuffer : m_viewPortFramebuffers)
+        {
+            if (framebuffer != VK_NULL_HANDLE)
+                vkDestroyFramebuffer(device, framebuffer, nullptr);
+        }
+        m_viewPortFramebuffers.clear();
+
+        if (m_renderPass != VK_NULL_HANDLE)
+        {
+            vkDestroyRenderPass(device, m_renderPass, nullptr);
+            m_renderPass = VK_NULL_HANDLE;
+        }
+    }
+}
+
+SeTextureHandle VulkanDevice::getViewportTex(uint32_t frameIndex)
+{
+    if (frameIndex >= *m_config->frame_in_flight)
+        return VK_NULL_HANDLE;
+
+    return static_cast<SeTextureHandle>(&m_viewPort[frameIndex]);
+}
+
+uint32_t VulkanDevice::getCurrentFrameIndex()
+{
+    return *m_config->currentFrame;
+}
+
+VkSampler VulkanDevice::getOrCreateDefaultSampler()
+{
+    if (m_sampler != VK_NULL_HANDLE)
+        return m_sampler;
+
+    VkSamplerCreateInfo samplerInfo {};
+    samplerInfo.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter               = VK_FILTER_LINEAR;
+    samplerInfo.minFilter               = VK_FILTER_LINEAR;
+    samplerInfo.mipmapMode              = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.addressModeU            = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeV            = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeW            = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.mipLodBias              = 0.0f;
+    samplerInfo.anisotropyEnable        = VK_FALSE;
+    samplerInfo.maxAnisotropy           = 1.0f;
+    samplerInfo.compareEnable           = VK_FALSE;
+    samplerInfo.compareOp               = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.minLod                  = 0.0f;
+    samplerInfo.maxLod                  = 0.0f;
+    samplerInfo.borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+
+    if (vkCreateSampler(*m_config->device, &samplerInfo, nullptr, &m_sampler) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create default sampler!");
+    }
+
+    return m_sampler;
 }
 
 }  // namespace SE

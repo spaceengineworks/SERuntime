@@ -1,6 +1,7 @@
 #ifndef SERUNTIME_H
 #define SERUNTIME_H
 
+#include <cstdint>
 #include <memory>
 
 #include "Render/RHI/RHI.hpp"
@@ -32,7 +33,30 @@ class SERUNTIME_API SERuntine
     SERuntine(SeRender render);
     ~SERuntine();
 
-    SeRenderHandle SeAskConfig();
+    SeRenderHandle  SeAskConfig();
+    SeResult        initViewPort(uint32_t width, uint32_t height);
+    void            updateAndRender();
+    SeTextureHandle getViewportTex(uint32_t currentFrame) const;
+    void            deviceCleanUp()
+    {
+        m_hardware->cleanUp();
+    }
+
+    void setViewportColor(float r, float g, float b)
+    {
+        if (m_hardware)
+            m_hardware->setClearColor(r, g, b);
+    }
+
+    uint32_t getCurrentFrameIndex() const
+    {
+        return m_hardware ? m_hardware->getCurrentFrameIndex() : 0;
+    }
+
+    uint32_t getFramesInFlight() const
+    {
+        return m_hardware ? m_hardware->getFramesInFlightCount() : 0;
+    }
 
    private:
     std::unique_ptr<RHI> m_hardware = nullptr;

@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(ENABLE_PROFILING "Enable Tracy profiler" OFF)
+option(ENABLE_PROFILING "Enable Tracy profiler" ON)
 set(ENABLE_PROFILING ${ENABLE_PROFILING} CACHE BOOL "" FORCE)
 
 include(FetchContent)
@@ -56,9 +56,9 @@ target_link_libraries(SERuntime PRIVATE
 
 target_include_directories(SERuntime PUBLIC ${tracy_SOURCE_DIR}/public)
 
-if(ENABLE_PROFILING)
+if(SERUNTIME_ENABLE_PROFILING)
     target_link_libraries(SERuntime PUBLIC Tracy::TracyClient)
-    target_compile_definitions(SERuntime PUBLIC TRACY_ENABLE)
+    target_compile_definitions(SERuntime PUBLIC TRACY_ENABLE TRACY_API_EXPORT)
 endif()
 
 if(MSVC)
