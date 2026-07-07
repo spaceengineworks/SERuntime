@@ -7,7 +7,6 @@ namespace SE
 
 /*
 TODO:
-1) added resize.
 2) pass current frame by refernce.
 */
 
@@ -454,9 +453,9 @@ SeTextureHandle VulkanDevice::getViewportTex(uint32_t frameIndex)
     return static_cast<SeTextureHandle>(&m_viewPort[frameIndex]);
 }
 
-uint32_t VulkanDevice::getCurrentFrameIndex()
+const uint32_t* VulkanDevice::getCurrentFrameIndex()
 {
-    return *m_config->currentFrame;
+    return m_config->currentFrame;
 }
 
 VkSampler VulkanDevice::getOrCreateDefaultSampler()

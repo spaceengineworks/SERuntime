@@ -58,7 +58,7 @@ class SERUNTIME_API SERuntine
         return false;
     }
 
-    uint32_t getCurrentFrameIndex() const
+    const uint32_t* getCurrentFrameIndex() const
     {
         return m_hardware ? m_hardware->getCurrentFrameIndex() : 0;
     }

@@ -36,8 +36,8 @@ class VulkanDevice : public RHI
     void createSyncObjects() override;
     void cleanUp() override;
 
-    uint32_t getCurrentFrameIndex() override;
-    uint32_t getFramesInFlightCount() const
+    const uint32_t* getCurrentFrameIndex() override;
+    uint32_t        getFramesInFlightCount() const
     {
         return *m_config->frame_in_flight;
     }

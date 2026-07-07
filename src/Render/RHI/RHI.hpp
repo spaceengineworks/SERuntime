@@ -40,7 +40,7 @@ class RHI
 
     virtual void            updateAndRender()                   = 0;
     virtual SeTextureHandle getViewportTex(uint32_t frameIndex) = 0;
-    virtual uint32_t        getCurrentFrameIndex()              = 0;
+    virtual const uint32_t* getCurrentFrameIndex()              = 0;
 
     virtual SeResult needVPResize(const uint32_t* width, const uint32_t* height) = 0;
     virtual void     resizeVP(const uint32_t* width, const uint32_t* height)     = 0;
