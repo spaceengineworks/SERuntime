@@ -1,10 +1,17 @@
 #include "RHI/Vulkan/VulkanDevice.hpp"
 
+#include <iostream>
 #include <tracy/Tracy.hpp>
+
 namespace SE
 
-{
+/*
+TODO:
+1) added resize.
+2) pass current frame by refernce.
+*/
 
+{
 VulkanDevice::VulkanDevice()
 {
     m_config = std::make_unique<SharedVulkanConfig>();
@@ -60,6 +67,22 @@ void VulkanDevice::CreateViewPortImage(uint32_t width, uint32_t height)
         m_viewPort.resize(*m_config->frame_in_flight);
     }
 
+    VkDevice device = *m_config->device;
+
+    VkCommandBufferAllocateInfo allocInfoCmd {};
+    allocInfoCmd.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfoCmd.commandPool        = *m_config->commandPool;
+    allocInfoCmd.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfoCmd.commandBufferCount = 1;
+
+    VkCommandBuffer transitionCmd;
+    vkAllocateCommandBuffers(device, &allocInfoCmd, &transitionCmd);
+
+    VkCommandBufferBeginInfo beginInfo {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(transitionCmd, &beginInfo);
+
     for (uint32_t i = 0; i < *m_config->frame_in_flight; i++)
     {
         VkImageCreateInfo imageInfo {};
@@ -75,10 +98,10 @@ void VulkanDevice::CreateViewPortImage(uint32_t width, uint32_t height)
         imageInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
 
-        vkCreateImage(*m_config->device, &imageInfo, nullptr, &m_viewPort[i].image);
+        vkCreateImage(device, &imageInfo, nullptr, &m_viewPort[i].image);
 
         VkMemoryRequirements memReq;
-        vkGetImageMemoryRequirements(*m_config->device, m_viewPort[i].image, &memReq);
+        vkGetImageMemoryRequirements(device, m_viewPort[i].image, &memReq);
 
         VkMemoryAllocateInfo allocInfo {};
         allocInfo.sType          = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -86,8 +109,8 @@ void VulkanDevice::CreateViewPortImage(uint32_t width, uint32_t height)
         allocInfo.memoryTypeIndex =
             findMemoryType(memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        vkAllocateMemory(*m_config->device, &allocInfo, nullptr, &m_viewPort[i].imageMemory);
-        vkBindImageMemory(*m_config->device, m_viewPort[i].image, m_viewPort[i].imageMemory, 0);
+        vkAllocateMemory(device, &allocInfo, nullptr, &m_viewPort[i].imageMemory);
+        vkBindImageMemory(device, m_viewPort[i].image, m_viewPort[i].imageMemory, 0);
 
         VkImageViewCreateInfo createInfo {};
         createInfo.sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -102,10 +125,40 @@ void VulkanDevice::CreateViewPortImage(uint32_t width, uint32_t height)
         createInfo.subresourceRange.baseArrayLayer = 0;
         createInfo.subresourceRange.layerCount     = 1;
 
-        if (vkCreateImageView(*m_config->device, &createInfo, nullptr, &m_viewPort[i].imageView)
-            != VK_SUCCESS)
+        if (vkCreateImageView(device, &createInfo, nullptr, &m_viewPort[i].imageView) != VK_SUCCESS)
             throw std::runtime_error("failed to create viewport image view!");
+
+        VkImageMemoryBarrier barrier {};
+        barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout                       = VK_IMAGE_LAYOUT_UNDEFINED;
+        barrier.newLayout                       = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image                           = m_viewPort[i].image;
+        barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel   = 0;
+        barrier.subresourceRange.levelCount     = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount     = 1;
+        barrier.srcAccessMask                   = 0;
+        barrier.dstAccessMask                   = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(transitionCmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1,
+                             &barrier);
     }
+
+    vkEndCommandBuffer(transitionCmd);
+
+    VkSubmitInfo submitInfo {};
+    submitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers    = &transitionCmd;
+
+    vkQueueSubmit(*m_config->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(*m_config->graphicsQueue);
+
+    vkFreeCommandBuffers(device, *m_config->commandPool, 1, &transitionCmd);
 }
 
 void VulkanDevice::viewPortCommandBuffer()
@@ -224,9 +277,19 @@ void VulkanDevice::createOffscreenRenderPass()
 
 //  -------------------- //
 
+void VulkanDevice::recreateViewPort()
+{
+    vkDeviceWaitIdle(*m_config->device);
+
+    cleanViewPort();
+    CreateViewPortImage(m_viewPortWidth, m_viewPortHeight);
+    createOffscreenFramebuffer();
+}
+
 void VulkanDevice::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
     ZoneScopedN("VulkanDevice::recordCommandBuffer");
+
     VkCommandBufferBeginInfo beginInfo {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
@@ -281,6 +344,12 @@ void VulkanDevice::updateAndRender()
     if (m_viewPortWidth <= 0 || m_viewPortHeight <= 0)
         return;
 
+    if (m_VPResized)
+    {
+        m_VPResized = false;
+        recreateViewPort();
+    }
+
     uint32_t currentFrame = *m_config->currentFrame;
 
     {
@@ -312,6 +381,26 @@ void VulkanDevice::createSyncObjects()
 
     for (auto& fence : m_inFlightFences)
         vkCreateFence(*m_config->device, &fenceInfo, nullptr, &fence);
+}
+
+void VulkanDevice::cleanViewPort()
+{
+    VkDevice device = *m_config->device;
+
+    for (auto framebuffer : m_viewPortFramebuffers)
+    {
+        if (framebuffer != VK_NULL_HANDLE)
+            vkDestroyFramebuffer(device, framebuffer, nullptr);
+    }
+    m_viewPortFramebuffers.clear();
+
+    for (auto viewPort : m_viewPort)
+    {
+        vkDestroyImageView(device, viewPort.imageView, nullptr);
+        vkDestroyImage(device, viewPort.image, nullptr);
+        vkFreeMemory(device, viewPort.imageMemory, nullptr);
+    }
+    m_viewPort.clear();
 }
 
 void VulkanDevice::cleanUp()

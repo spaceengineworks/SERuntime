@@ -48,6 +48,16 @@ class SERUNTIME_API SERuntine
             m_hardware->setClearColor(r, g, b);
     }
 
+    bool checkResizeViewPort(const uint32_t& width, const uint32_t& height)
+    {
+        if (m_hardware->needVPResize(&width, &height))
+        {
+            m_hardware->resizeVP(&width, &height);
+            return true;
+        }
+        return false;
+    }
+
     uint32_t getCurrentFrameIndex() const
     {
         return m_hardware ? m_hardware->getCurrentFrameIndex() : 0;
