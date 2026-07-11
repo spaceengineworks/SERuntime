@@ -8,12 +8,15 @@
 #include <cstdint>
 #include <stdexcept>
 
+#include "vk_mem_alloc.h"
+
 struct SharedVulkanConfig
 {
     const VkInstance*       instance       = nullptr;
     const VkPhysicalDevice* physicalDevice = nullptr;
     const VkDevice*         device         = nullptr;
     const VkSurfaceKHR*     surface        = nullptr;
+    const VmaAllocator*     allocator      = nullptr;
 
     const VkQueue* graphicsQueue = nullptr;
     const VkQueue* presentQueue  = nullptr;
@@ -51,10 +54,10 @@ struct SharedVulkanConfig
 
 struct ViewPort
 {
-    VkImage         image         = VK_NULL_HANDLE;
-    VkDeviceMemory  imageMemory   = VK_NULL_HANDLE;
-    VkImageView     imageView     = VK_NULL_HANDLE;
-    VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+    VkImage         image           = VK_NULL_HANDLE;
+    VmaAllocation   imageAllocation = VK_NULL_HANDLE;
+    VkImageView     imageView       = VK_NULL_HANDLE;
+    VkDescriptorSet descriptorSet   = VK_NULL_HANDLE;
 };
 
 #endif /* VULKAN_CONFIG_HPP */

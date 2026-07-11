@@ -20,6 +20,7 @@ FetchContent_MakeAvailable(tracy)
     
 find_package(Vulkan REQUIRED MODULE)
 find_package(unofficial-shaderc CONFIG REQUIRED)
+find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(Jolt CONFIG REQUIRED)

@@ -1,3 +1,6 @@
+#define VMA_IMPLEMENTATION
+#define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
+
 #include "RHI/Vulkan/VulkanDevice.hpp"
 
 #include <iostream>
@@ -97,19 +100,11 @@ void VulkanDevice::CreateViewPortImage(uint32_t width, uint32_t height)
         imageInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
 
-        vkCreateImage(device, &imageInfo, nullptr, &m_viewPort[i].image);
+        VmaAllocationCreateInfo allocCreateInfo {};
+        allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 
-        VkMemoryRequirements memReq;
-        vkGetImageMemoryRequirements(device, m_viewPort[i].image, &memReq);
-
-        VkMemoryAllocateInfo allocInfo {};
-        allocInfo.sType          = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memReq.size;
-        allocInfo.memoryTypeIndex =
-            findMemoryType(memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-        vkAllocateMemory(device, &allocInfo, nullptr, &m_viewPort[i].imageMemory);
-        vkBindImageMemory(device, m_viewPort[i].image, m_viewPort[i].imageMemory, 0);
+        vmaCreateImage(*m_config->allocator, &imageInfo, &allocCreateInfo, &m_viewPort[i].image,
+                       &m_viewPort[i].imageAllocation, nullptr);
 
         VkImageViewCreateInfo createInfo {};
         createInfo.sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -396,8 +391,7 @@ void VulkanDevice::cleanViewPort()
     for (auto viewPort : m_viewPort)
     {
         vkDestroyImageView(device, viewPort.imageView, nullptr);
-        vkDestroyImage(device, viewPort.image, nullptr);
-        vkFreeMemory(device, viewPort.imageMemory, nullptr);
+        vmaDestroyImage(*m_config->allocator, viewPort.image, viewPort.imageAllocation);
     }
     m_viewPort.clear();
 }
@@ -409,6 +403,8 @@ void VulkanDevice::cleanUp()
     if (m_config && *m_config->device != VK_NULL_HANDLE)
     {
         VkDevice device = *m_config->device;
+
+        cleanViewPort();
 
         if (m_sampler != VK_NULL_HANDLE)
         {

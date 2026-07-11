@@ -11,6 +11,7 @@
 
 #include "RHI/RHI.hpp"
 #include "VulkanConfig.hpp"
+#include "vk_mem_alloc.h"
 
 namespace SE
 {
@@ -66,14 +67,6 @@ class VulkanDevice : public RHI
     std::unique_ptr<SharedVulkanConfig> m_config = nullptr;
 
     float m_clearColor[4] = {0.1f, 0.15f, 0.2f, 1.0f};
-
-    struct ViewPort
-    {
-        VkImage         image         = VK_NULL_HANDLE;
-        VkDeviceMemory  imageMemory   = VK_NULL_HANDLE;
-        VkImageView     imageView     = VK_NULL_HANDLE;
-        VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
-    };
 
     std::vector<ViewPort>        m_viewPort;
     std::vector<VkCommandBuffer> m_commandBuffers;

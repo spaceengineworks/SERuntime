@@ -11,6 +11,7 @@ target_include_directories(Render PUBLIC
 target_link_libraries(Render PUBLIC
     Vulkan::Vulkan
     unofficial::shaderc::shaderc
+    GPUOpen::VulkanMemoryAllocator
 )
 
 if(SERUNTIME_ENABLE_PROFILING)
