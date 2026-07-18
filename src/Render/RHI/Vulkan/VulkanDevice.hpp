@@ -26,13 +26,14 @@ class VulkanDevice : public RHI
         return static_cast<SeRenderHandle>(m_config.get());
     }
 
-    void            CreateViewPortImage(uint32_t width, uint32_t height) override;
-    void            recreateViewPort() override;
-    void            createOffscreenFramebuffer() override;
-    void            viewPortCommandBuffer() override;
-    SeTextureHandle getViewportTex(uint32_t frameIndex) override;
+    void             CreateViewPortImage(uint32_t width, uint32_t height) override;
+    void             recreateViewPort() override;
+    void             createOffscreenFramebuffer() override;
+    void             viewPortCommandBuffer() override;
+    SeTextureHandle  getViewportTex(uint32_t frameIndex) override;
+    SeResourseHandle getViewportImageHandle(uint32_t frameIndex) override;
 
-    void updateAndRender() override;
+    void updateAndRender(FrameGraph* frameGraph) override;
     void createOffscreenRenderPass() override;
     void createSyncObjects() override;
     void cleanUp() override;
@@ -45,8 +46,7 @@ class VulkanDevice : public RHI
 
     SeResult needVPResize(const uint32_t* width, const uint32_t* height) override
     {
-        return ((*width != m_viewPortWidth) || (*height != m_viewPortHeight)) ? SeResult::SE_RESIZED
-                                                                              : SE_SUCCESS;
+        return ((*width != m_viewPortWidth) || (*height != m_viewPortHeight)) ? SeResult::SE_RESIZED : SE_SUCCESS;
     }
 
     void resizeVP(const uint32_t* width, const uint32_t* height)
@@ -62,6 +62,11 @@ class VulkanDevice : public RHI
         m_clearColor[1] = g;
         m_clearColor[2] = b;
     }
+
+    /* TODO: temp */
+    void insertPipelineBarrier(BarrierDesc* barrier) override;
+
+    void beginRenderPass() override;
 
    private:
     std::unique_ptr<SharedVulkanConfig> m_config = nullptr;
@@ -80,8 +85,10 @@ class VulkanDevice : public RHI
 
     std::vector<VkFence> m_inFlightFences;
 
+    VkCommandBuffer m_currCmdBuff = VK_NULL_HANDLE;
+
     uint32_t  findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
-    void      recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    void      recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, FrameGraph* frameGraph);
     VkSampler getOrCreateDefaultSampler();
 
     void cleanViewPort();

@@ -2,9 +2,15 @@
 #define RHI_H
 
 #include <cstdint>
+#include <vector>
+
+#include "../FrameGraph/FrameGraph.hpp"
+#include "../ThirdParty/thsvs_simpler_RHI.h"
 
 namespace SE
 {
+class FrameGraph;
+
 enum SeRenderType
 {
     Vulkan
@@ -19,9 +25,40 @@ enum SeResultInternals
     SE_RESIZED = 2
 };
 
-using SeResult        = SeResultInternals;
-using SeRenderHandle  = void*;
-using SeTextureHandle = void*;
+enum class ResourseType
+{
+    Buffer,
+    Image
+};
+
+using SeResult         = SeResultInternals;
+using SeRenderHandle   = void*;
+using SeTextureHandle  = void*;
+using SeResourseHandle = void*;
+
+struct BarrierDesc
+{
+    SeResourseHandle resourse;
+    ResourseType     type;
+
+    std::vector<ThsvsAccessType> prevAccesses;
+    std::vector<ThsvsAccessType> nextAccesses;
+
+    ThsvsImageLayout prevLayout      = THSVS_IMAGE_LAYOUT_OPTIMAL;
+    ThsvsImageLayout nextLayout      = THSVS_IMAGE_LAYOUT_OPTIMAL;
+    bool             discardContents = false;
+
+    uint32_t baseMipLevel   = 0;
+    uint32_t levelCount     = 1;
+    uint32_t baseArrayLayer = 0;
+    uint32_t layerCount     = 1;
+
+    uint32_t srcQueueFamily = ~0u;
+    uint32_t dstQueueFamily = ~0u;
+
+    uint64_t offset = 0;
+    uint64_t size   = 0;
+};
 
 class RHI
 {
@@ -38,9 +75,10 @@ class RHI
     virtual void createSyncObjects()                                  = 0;
     virtual void cleanUp()                                            = 0;
 
-    virtual void            updateAndRender()                   = 0;
-    virtual SeTextureHandle getViewportTex(uint32_t frameIndex) = 0;
-    virtual const uint32_t* getCurrentFrameIndex()              = 0;
+    virtual void             updateAndRender(FrameGraph* frameGraph)     = 0;
+    virtual SeTextureHandle  getViewportTex(uint32_t frameIndex)         = 0;
+    virtual SeResourseHandle getViewportImageHandle(uint32_t frameIndex) = 0;
+    virtual const uint32_t*  getCurrentFrameIndex()                      = 0;
 
     virtual SeResult needVPResize(const uint32_t* width, const uint32_t* height) = 0;
     virtual void     resizeVP(const uint32_t* width, const uint32_t* height)     = 0;
@@ -48,6 +86,11 @@ class RHI
     virtual uint32_t getFramesInFlightCount() const = 0;
 
     virtual void setClearColor(float r, float g, float b) = 0;
+
+    /* TODO: temp */
+    virtual void insertPipelineBarrier(BarrierDesc* barrier) = 0;
+
+    virtual void beginRenderPass() = 0;
 };
 }  // namespace SE
 

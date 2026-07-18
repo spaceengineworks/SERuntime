@@ -3,7 +3,7 @@ BasedOnStyle: Google
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
-ColumnLimit: 100
+ColumnLimit: 200
 ReflowComments: true
 
 BreakBeforeBraces: Allman

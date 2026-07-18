@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "Render/FrameGraph/FrameGraph.hpp"
 #include "Render/RHI/RHI.hpp"
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -26,7 +27,6 @@
 
 namespace SE
 {
-
 class SERUNTIME_API SERuntine
 {
    public:
@@ -39,20 +39,20 @@ class SERUNTIME_API SERuntine
     SeTextureHandle getViewportTex(uint32_t currentFrame) const;
     void            deviceCleanUp()
     {
-        m_hardware->cleanUp();
+        m_context->cleanUp();
     }
 
     void setViewportColor(float r, float g, float b)
     {
-        if (m_hardware)
-            m_hardware->setClearColor(r, g, b);
+        if (m_context)
+            m_context->setClearColor(r, g, b);
     }
 
     bool checkResizeViewPort(const uint32_t& width, const uint32_t& height)
     {
-        if (m_hardware->needVPResize(&width, &height))
+        if (m_context->needVPResize(&width, &height))
         {
-            m_hardware->resizeVP(&width, &height);
+            m_context->resizeVP(&width, &height);
             return true;
         }
         return false;
@@ -60,16 +60,18 @@ class SERUNTIME_API SERuntine
 
     const uint32_t* getCurrentFrameIndex() const
     {
-        return m_hardware ? m_hardware->getCurrentFrameIndex() : 0;
+        return m_context ? m_context->getCurrentFrameIndex() : 0;
     }
 
     uint32_t getFramesInFlight() const
     {
-        return m_hardware ? m_hardware->getFramesInFlightCount() : 0;
+        return m_context ? m_context->getFramesInFlightCount() : 0;
     }
 
    private:
-    std::unique_ptr<RHI> m_hardware = nullptr;
+    std::unique_ptr<RHI>        m_context    = nullptr;
+    std::unique_ptr<FrameGraph> m_frameGraph = nullptr;
+    FrameAllocator              m_frameAllocator;
 };
 }  // namespace SE
 

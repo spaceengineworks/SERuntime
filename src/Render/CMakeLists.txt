@@ -1,6 +1,8 @@
 add_library(Render
     RHI/RHI.cpp
     RHI/Vulkan/VulkanDevice.cpp
+    FrameGraph/FrameAllocator.cpp
+    FrameGraph/FrameGraph.cpp
 )
 
 target_include_directories(Render PUBLIC
