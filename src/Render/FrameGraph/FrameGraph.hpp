@@ -40,15 +40,14 @@ class FrameGraph
     }
 
     template <typename T>
-    void add(std::string_view passName, GPUFlags passflags, T* passParameters, std::function<void(RHI*)> passCallback)
+    void add(std::string passName, GPUFlags passflags, T* passParameters, std::function<void(RHI*)> passCallback)
     {
         auto resources = passParameters->getResources();
-        m_passes.emplace_back(passName, passflags, std::move(resources), passCallback);
+        m_passes.emplace_back(std::move(passName), passflags, std::move(resources), std::move(passCallback));
     }
 
    private:
     std::vector<FramePass> m_passes;
-    FrameAllocator         m_allacator;
     RHI*                   m_context = nullptr;
 };
 

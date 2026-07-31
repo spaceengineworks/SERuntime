@@ -11,11 +11,6 @@
 
 namespace SE
 
-/*
-TODO:
-2) pass current frame by refernce.
-*/
-
 {
 VulkanDevice::VulkanDevice()
 {

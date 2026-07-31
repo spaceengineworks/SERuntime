@@ -19,8 +19,8 @@ enum class GPUFlags
 class FramePass
 {
    public:
-    FramePass(std::string_view name, GPUFlags flags, std::vector<ResourceField> resourceHandle, std::function<void(RHI*)> callback)
-        : m_passName(name), m_passflags(flags), m_passParameters(std::move(resourceHandle)), m_passCallback(std::move(callback))
+    FramePass(std::string name, GPUFlags flags, std::vector<ResourceField> resourceHandle, std::function<void(RHI*)> callback)
+        : m_passName(std::move(name)), m_passflags(flags), m_passParameters(std::move(resourceHandle)), m_passCallback(std::move(callback))
     {
     }
     void execute(RHI* ctx) const
@@ -29,7 +29,7 @@ class FramePass
             m_passCallback(ctx);
     }
 
-    std::string_view           m_passName;
+    std::string                m_passName;
     GPUFlags                   m_passflags;
     std::vector<ResourceField> m_passParameters;
     std::function<void(RHI*)>  m_passCallback;

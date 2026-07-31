@@ -7,7 +7,7 @@
 namespace SE
 {
 
-SERuntine::SERuntine(SeRender render)
+SERuntime::SERuntime(SeRender render)
 {
     if (render == SeRender::Vulkan)
         m_context = std::make_unique<VulkanDevice>();
@@ -17,16 +17,16 @@ SERuntine::SERuntine(SeRender render)
         throw std::runtime_error("frame graph not init.");
 }
 
-SERuntine::~SERuntine() = default;
+SERuntime::~SERuntime() = default;
 
-SeRenderHandle SERuntine::SeAskConfig()
+SeRenderHandle SERuntime::SeAskConfig()
 {
     if (!m_context)
         return nullptr;
     return m_context->passConfig();
 }
 
-SeResult SERuntine::initViewPort(uint32_t width, uint32_t height)
+SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
 {
     m_context->CreateViewPortImage(width, height);
     m_context->createOffscreenRenderPass();
@@ -91,15 +91,16 @@ SeResult SERuntine::initViewPort(uint32_t width, uint32_t height)
     return SeResult::SE_SUCCESS;
 }
 
-void SERuntine::updateAndRender()
+void SERuntime::updateAndRender()
 {
     if (m_context)
     {
+        m_frameAllocator.reset();
         m_context->updateAndRender(m_frameGraph.get());
     }
 }
 
-SeTextureHandle SERuntine::getViewportTex(uint32_t currentFrame) const
+SeTextureHandle SERuntime::getViewportTex(uint32_t currentFrame) const
 {
     if (!m_context)
         return VK_NULL_HANDLE;

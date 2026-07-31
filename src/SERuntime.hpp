@@ -25,13 +25,19 @@
 
 #endif
 
+// 0. add normal namespace inside other namespace
+// 1. Add a second pass (geometry pass) using shaderc pipeline + vertex/index buffer to test the graph
+// 2. ECS: add World.hpp/.cpp with EnTT registry, call update from runtime loop
+// 3. Physics: add Jolt world init + step call from runtime loop
+// 4. Clean up dead/commented code in VulkanDevice destructor, decide cleanUp() vs dtor
+
 namespace SE
 {
-class SERUNTIME_API SERuntine
+class SERUNTIME_API SERuntime
 {
    public:
-    SERuntine(SeRender render);
-    ~SERuntine();
+    SERuntime(SeRender render);
+    ~SERuntime();
 
     SeRenderHandle  SeAskConfig();
     SeResult        initViewPort(uint32_t width, uint32_t height);

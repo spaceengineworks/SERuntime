@@ -23,8 +23,16 @@ class FrameAllocator
     template <typename T, typename... Args>
     T* allocateFrameParams(Args&&... args)
     {
-        void* memory = &m_pool[m_resourceIdx];
-        m_resourceIdx += sizeof(T);
+        resourseRef aligned = (m_resourceIdx + alignof(T) - 1) & ~(alignof(T) - 1);
+
+        if (aligned + sizeof(T) > m_pool.size())
+        {
+            assert(false && "FrameAllocator: pool exhausted, increase DEFAULT_POOL_SIZE");
+            return nullptr;
+        }
+
+        void* memory  = &m_pool[aligned];
+        m_resourceIdx = aligned + sizeof(T);
         return new (memory) T(std::forward<Args>(args)...);
     }
 

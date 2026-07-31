@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "../../space_core.hpp"
 #include "../FrameGraph/FrameGraph.hpp"
 #include "../ThirdParty/thsvs_simpler_RHI.h"
 
@@ -18,20 +19,12 @@ enum SeRenderType
 
 using SeRender = SeRenderType;
 
-enum SeResultInternals
-{
-    SE_SUCCESS = 0,
-    SE_FAILED  = 1,
-    SE_RESIZED = 2
-};
-
 enum class ResourseType
 {
     Buffer,
     Image
 };
 
-using SeResult         = SeResultInternals;
 using SeRenderHandle   = void*;
 using SeTextureHandle  = void*;
 using SeResourseHandle = void*;
