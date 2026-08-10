@@ -3,6 +3,22 @@
 namespace SE::Render::Shader
 {
 
+VkShaderManager::VkShaderManager()
+{
+}
+
+VkShaderManager::~VkShaderManager()
+{
+    if (!m_config || !m_config->device)
+        return;
+
+    for (Shader& shader : m_shaders)
+    {
+        if (shader.module != VK_NULL_HANDLE)
+            vkDestroyShaderModule(*m_config->device, shader.module, nullptr);
+    }
+}
+
 SeShaderID VkShaderManager::createShader(ShaderDesc desc)
 {
     std::vector<uint8_t> result = compileShader(desc.source, desc.fileName, desc.shaderType);

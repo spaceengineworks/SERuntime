@@ -4,10 +4,11 @@
 #include <assert.h>
 
 #include <queue>
+#include <vector>
 #include <shaderc/shaderc.hpp>
 
 #include "../IShaderManager.hpp"
-#include "../Render/RHI/Vulkan/VulkanConfig.hpp"
+#include "../../../RHI/Vulkan/VulkanConfig.hpp"
 
 namespace SE::Render::Shader
 {

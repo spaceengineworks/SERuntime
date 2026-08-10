@@ -12,6 +12,11 @@ SERuntime::SERuntime(SeRender render)
     if (render == SeRender::Vulkan)
         m_context = std::make_unique<VulkanDevice>();
 
+    auto* config = static_cast<SharedVulkanConfig*>(m_context->passConfig());
+    m_shaderManager.setConfig(config);
+    m_textureManager.setConfig(config);
+    // m_pipelineManager.setConfig(config);
+
     m_frameGraph = std::make_unique<FrameGraph>(m_context.get());
     if (!m_frameGraph)
         throw std::runtime_error("frame graph not init.");

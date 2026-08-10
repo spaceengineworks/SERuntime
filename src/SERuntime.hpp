@@ -5,6 +5,10 @@
 #include <memory>
 
 #include "Render/FrameGraph/FrameGraph.hpp"
+#include "Render/Managers/ShaderManager/IShaderManager.hpp"
+#include "Render/Managers/ShaderManager/Vulkan/VkShaderManager.hpp"
+#include "Render/Managers/TextureManager/ITextureManager.hpp"
+#include "Render/Managers/TextureManager/Vulkan/VkTextureManager.hpp"
 #include "Render/RHI/RHI.hpp"
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -30,6 +34,24 @@
 // 2. ECS: add World.hpp/.cpp with EnTT registry, call update from runtime loop
 // 3. Physics: add Jolt world init + step call from runtime loop
 // 4. Clean up dead/commented code in VulkanDevice destructor, decide cleanUp() vs dtor
+
+/* TODO:
+
+- Extract shared pipeline creation logic from createGraphicsPipeline() into buildPipeline(PipelineDesc) helper
+- Create createMeshPipeline() for 3D: own shaders, 3D vertex layout, own VkPipelineLayout, depth test ON, cull back, blend OFF
+- Replace single m_graphicsPipeline/m_pipelineLayout with a pipeline cache (map<string, PipelineHandle>)
+- Add depth attachment to SE::VulkanDevice::createOffscreenRenderPass() (currently missing)
+- Create depth image + view for offscreen framebuffer
+- Mesh pipeline must use offscreen m_renderPass, UI pipeline must use swapchain m_renderPass
+- (later) Material/Shader abstraction: ShaderHandle, Material, mesh holds Material not raw pipeline
+- (later) Sort draw calls by pipeline before pass to minimize vkCmdBindPipeline calls
+- Check if mesh pass and UI pass use one command buffer or two
+- If two buffers: add semaphore/barrier sync before UI samples offscreen texture
+- Barrier COLOR_ATTACHMENT_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL after mesh pass
+- Decide: keep VkShaderManager (hot-reload/variants) or drop it, keep inline readFile+vkCreateShaderModule
+- If keeping VkShaderManager: fix compileShader (no return value), implement createShader/getShaderHandle
+
+*/
 
 namespace SE
 {
@@ -78,6 +100,10 @@ class SERUNTIME_API SERuntime
     std::unique_ptr<RHI>        m_context    = nullptr;
     std::unique_ptr<FrameGraph> m_frameGraph = nullptr;
     FrameAllocator              m_frameAllocator;
+
+    Render::Shader::VkShaderManager   m_shaderManager;
+    Render::Texture::VkTextureManager m_textureManager;
+    // Render::Pipeline::VkPipelineManager m_pipelineManager;
 };
 }  // namespace SE
 

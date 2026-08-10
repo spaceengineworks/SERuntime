@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "../ITextureManager.hpp"
-#include "../Render/RHI/Vulkan/VulkanConfig.hpp"
+#include "../../../RHI/Vulkan/VulkanConfig.hpp"
 #include "vk_mem_alloc.h"
 
 namespace SE::Render::Texture
