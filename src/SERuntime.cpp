@@ -1,21 +1,140 @@
 #include "SERuntime.hpp"
 
+#include <iostream>
+#include <stdexcept>
 #include <tracy/Tracy.hpp>
 
+#include "Render/Managers/PipelineManager/Vulkan/VkPipelineManager.hpp"
+#include "Render/Managers/ShaderManager/Vulkan/VkShaderManager.hpp"
+#include "Render/Managers/TextureManager/Vulkan/VkTextureManager.hpp"
 #include "Render/RHI/Vulkan/VulkanDevice.hpp"
 
 namespace SE
 {
-
-SERuntime::SERuntime(SeRender render)
+namespace detail
 {
-    if (render == SeRender::Vulkan)
-        m_context = std::make_unique<VulkanDevice>();
+std::unique_ptr<RHI> createRenderContext(SeRender render)
+{
+    switch (render)
+    {
+        case SeRender::Vulkan:
+            return std::make_unique<VulkanDevice>();
+        default:
+            throw std::runtime_error("unsupported render backend");
+    }
+}
 
-    auto* config = static_cast<SharedVulkanConfig*>(m_context->passConfig());
-    m_shaderManager.setConfig(config);
-    m_textureManager.setConfig(config);
-    // m_pipelineManager.setConfig(config);
+struct BackendManagers
+{
+    std::unique_ptr<Render::Shader::IShaderManager>     shaderManager;
+    std::unique_ptr<Render::Texture::ITextureManager>   textureManager;
+    std::unique_ptr<Render::Pipeline::IPipelineManager> pipelineManager;
+};
+
+BackendManagers createBackendManagers(SeRender render, SharedVulkanConfig* config)
+{
+    if (!config)
+        throw std::runtime_error("failed to retrieve backend config");
+
+    switch (render)
+    {
+        case SeRender::Vulkan:
+        {
+            BackendManagers managers {};
+            managers.shaderManager   = std::make_unique<Render::Shader::VkShaderManager>();
+            managers.textureManager  = std::make_unique<Render::Texture::VkTextureManager>();
+            managers.pipelineManager = std::make_unique<Render::Pipeline::VkPipelineManager>();
+
+            static_cast<Render::Shader::VkShaderManager*>(managers.shaderManager.get())->setConfig(config);
+            static_cast<Render::Texture::VkTextureManager*>(managers.textureManager.get())->setConfig(config);
+            static_cast<Render::Pipeline::VkPipelineManager*>(managers.pipelineManager.get())->setConfig(config);
+
+            static_cast<Render::Pipeline::VkPipelineManager*>(managers.pipelineManager.get())->setShaderManager(managers.shaderManager.get());
+
+            return managers;
+        }
+        default:
+            throw std::runtime_error("unsupported backend managers");
+    }
+}
+}  // namespace detail
+
+SERuntime::SERuntime(SeRender render) : m_API_render(render)
+{
+    m_context = detail::createRenderContext(m_API_render);
+}
+
+void SERuntime::initEngine()
+{
+    auto* config  = static_cast<SharedVulkanConfig*>(m_context->passConfig());
+    auto  backend = detail::createBackendManagers(m_API_render, config);
+
+    m_shaderManager   = std::move(backend.shaderManager);
+    m_textureManager  = std::move(backend.textureManager);
+    m_pipelineManager = std::move(backend.pipelineManager);
+
+    if (m_API_render == Vulkan)
+    {
+        m_context->createOffscreenRenderPass();
+        auto* vkDevice = static_cast<VulkanDevice*>(m_context.get());
+        m_pipelineManager->setVkRenderPass(vkDevice->getRenderPassPtr());
+    }
+
+    const char* vertSource = R"(
+    #version 450
+
+    vec2 positions[3] = vec2[](
+        vec2( 0.0, -0.5),
+        vec2( 0.5,  0.5),
+        vec2(-0.5,  0.5)
+    );
+
+    void main() {
+        gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
+    }
+)";
+
+    const char* fragSource = R"(
+    #version 450
+
+    layout(location = 0) out vec4 outColor;
+
+    void main() {
+        outColor = vec4(1.0, 0.5, 0.0, 1.0);
+    }
+)";
+
+    auto vertId = m_shaderManager->createShader({vertSource, "temp_vert.spv", Render::Shader::vertex_shader});
+    auto fragId = m_shaderManager->createShader({fragSource, "temp_frag.spv", Render::Shader::fragment_shader});
+
+    Render::Pipeline::PipelineDesc desc {};
+
+    desc.shaders    = {vertId, fragId};
+    desc.stageCount = 2;
+    desc.flags      = 0;
+
+    desc.topology    = Render::Pipeline::PrimitiveTopology::TRIANGLE_LIST;
+    desc.polygonMode = Render::Pipeline::PolygonMode::FILL;
+    desc.cullMode    = Render::Pipeline::CullMode::NONE;
+
+    desc.sampleCount = Render::Pipeline::SampleCount::SAMPLE_COUNT_1;
+
+    desc.viewportCount = 1;
+    desc.scissorCount  = 1;
+    desc.dynamicStates = {Render::Pipeline::DynamicState::VIEWPORT, Render::Pipeline::DynamicState::SCISSOR};
+
+    desc.descriptorCount = 0;
+    desc.resourceStages  = Render::Pipeline::ShaderStage::NONE;
+
+    desc.pushConstantStages = Render::Pipeline::ShaderStage::NONE;
+    desc.pushConstantSize   = 0;
+
+    desc.colorWriteMask      = Render::Pipeline::COLOR_COMPONENT_ALL;
+    desc.srcColorBlendFactor = Render::Pipeline::BlendFactor::ONE;
+    desc.dstColorBlendFactor = Render::Pipeline::BlendFactor::ZERO;
+    desc.colorBlendOp        = Render::Pipeline::BlendOp::ADD;
+
+    m_pipelineManager->createPipeline(desc);
 
     m_frameGraph = std::make_unique<FrameGraph>(m_context.get());
     if (!m_frameGraph)
@@ -34,7 +153,6 @@ SeRenderHandle SERuntime::SeAskConfig()
 SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
 {
     m_context->CreateViewPortImage(width, height);
-    m_context->createOffscreenRenderPass();
     m_context->createOffscreenFramebuffer();
     m_context->viewPortCommandBuffer();
     m_context->createSyncObjects();
@@ -89,6 +207,20 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
                           ctx->insertPipelineBarrier(&barrier);
 
                           ctx->beginRenderPass();
+                      });
+
+    auto* pipelineMgr = m_pipelineManager.get();
+
+    m_frameGraph->add("draw_triangle", GPUFlags::Render, clear,
+                      [pipelineMgr](RHI* ctx)
+                      {
+                          ctx->bindPipe(pipelineMgr->getPipelineHandle(0));
+
+                          ctx->setViewport();
+                          ctx->setScissor();
+
+                          ctx->callDraw();
+                          ctx->endRenderPass();
                       });
 
     m_frameGraph->build();

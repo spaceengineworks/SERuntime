@@ -21,12 +21,12 @@ VkShaderManager::~VkShaderManager()
 
 SeShaderID VkShaderManager::createShader(ShaderDesc desc)
 {
-    std::vector<uint8_t> result = compileShader(desc.source, desc.fileName, desc.shaderType);
+    std::vector<uint32_t> result = compileShader(desc.source, desc.fileName, desc.shaderType);
 
     VkShaderModuleCreateInfo createInfo {};
     createInfo.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = result.size();
-    createInfo.pCode    = reinterpret_cast<const uint32_t*>(result.data());
+    createInfo.codeSize = result.size() * sizeof(uint32_t);
+    createInfo.pCode    = result.data();
 
     VkShaderModule shaderModule;
     if (vkCreateShaderModule(*m_config->device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
@@ -79,9 +79,9 @@ SeShaderHandle VkShaderManager::getShaderHandle(SeShaderID shaderId)
     return static_cast<SeShaderHandle>(&shader);
 }
 
-/* Methods to change layout one time */
+/* Methods to compile shaders */
 
-std::vector<uint8_t> VkShaderManager::compileShader(const char* source, const char* fileName, SeShaderType shaderType)
+std::vector<uint32_t> VkShaderManager::compileShader(const char* source, const char* fileName, SeShaderType shaderType)
 {
     shaderc::SpvCompilationResult result = m_compiler.CompileGlslToSpv(source, toShaderc(shaderType), fileName, m_options);
 
@@ -90,7 +90,7 @@ std::vector<uint8_t> VkShaderManager::compileShader(const char* source, const ch
         assert(false && "Bad status after shader compilation.");
     }
 
-    std::vector<uint8_t> spirv_code(result.cbegin(), result.cend());
+    std::vector<uint32_t> spirv_code(result.cbegin(), result.cend());
     return spirv_code;
 }
 

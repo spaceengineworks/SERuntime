@@ -4,6 +4,7 @@ add_library(Render
     FrameGraph/FrameGraph.cpp
     Managers/TextureManager/Vulkan/VkTextureManager.cpp
     Managers/ShaderManager/Vulkan/VkShaderManager.cpp
+    Managers/PipelineManager/Vulkan/VkPipelineManager.cpp
 )
 
 target_include_directories(Render PUBLIC

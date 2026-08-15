@@ -1,4 +1,5 @@
 #ifndef VULKANDEVICE_HPP
+#define VULKANDEVICE_HPP
 
 #include <vulkan/vulkan.h>
 
@@ -44,6 +45,11 @@ class VulkanDevice : public RHI
         return *m_config->frame_in_flight;
     }
 
+    VkRenderPass* getRenderPassPtr()
+    {
+        return &m_renderPass;
+    }
+
     SeResult needVPResize(const uint32_t* width, const uint32_t* height) override
     {
         return ((*width != m_viewPortWidth) || (*height != m_viewPortHeight)) ? SeResult::SE_RESIZED : SE_SUCCESS;
@@ -67,6 +73,44 @@ class VulkanDevice : public RHI
     void insertPipelineBarrier(BarrierDesc* barrier) override;
 
     void beginRenderPass() override;
+
+    /* frame graph methods */
+    virtual void endRenderPass()
+    {
+        vkCmdEndRenderPass(m_currCmdBuff);
+    }
+
+    virtual void callDraw()
+    {
+        vkCmdDraw(m_currCmdBuff, 3, 1, 0, 0);
+    }
+
+    virtual void bindPipe(void* handle)
+    {
+        VkPipeline pipeline = reinterpret_cast<VkPipeline>(handle);
+        vkCmdBindPipeline(m_currCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    }
+
+    virtual void setViewport()
+    {
+        VkViewport viewport {};
+        viewport.x        = 0.0f;
+        viewport.y        = 0.0f;
+        viewport.width    = (float) m_viewPortWidth;
+        viewport.height   = (float) m_viewPortHeight;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(m_currCmdBuff, 0, 1, &viewport);
+    }
+
+    virtual void setScissor()
+    {
+        VkRect2D scissor {};
+        scissor.offset = {0, 0};
+        scissor.extent = {m_viewPortWidth, m_viewPortHeight};
+        vkCmdSetScissor(m_currCmdBuff, 0, 1, &scissor);
+    }
+    /*---------------------*/
 
    private:
     std::unique_ptr<SharedVulkanConfig> m_config = nullptr;

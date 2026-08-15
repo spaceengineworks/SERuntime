@@ -4,21 +4,21 @@
 #include <assert.h>
 
 #include <queue>
-#include <vector>
 #include <shaderc/shaderc.hpp>
+#include <vector>
 
-#include "../IShaderManager.hpp"
 #include "../../../RHI/Vulkan/VulkanConfig.hpp"
+#include "../IShaderManager.hpp"
 
 namespace SE::Render::Shader
 {
 
 struct Shader
 {
-    VkShaderModule       module;
-    std::vector<uint8_t> source;
-    const char*          fileName;
-    SeShaderType         shaderType;
+    VkShaderModule        module;
+    std::vector<uint32_t> source;
+    const char*           fileName;
+    SeShaderType          shaderType;
 };
 
 class VkShaderManager : public IShaderManager
@@ -52,8 +52,8 @@ class VkShaderManager : public IShaderManager
     shaderc::Compiler       m_compiler;
     shaderc::CompileOptions m_options;
 
-    std::vector<uint8_t> compileShader(const char* source, const char* fileName, SeShaderType shaderType);
-    shaderc_shader_kind  toShaderc(SeShaderType type) const
+    std::vector<uint32_t> compileShader(const char* source, const char* fileName, SeShaderType shaderType);
+    shaderc_shader_kind   toShaderc(SeShaderType type) const
     {
         const shaderc_shader_kind shaderTypes[] = {shaderc_vertex_shader, shaderc_fragment_shader};
         return shaderTypes[type];
