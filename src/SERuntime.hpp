@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "Render/FrameGraph/FrameGraph.hpp"
+#include "Render/Managers/DescriptorManager/IDescriptorManager.hpp"
 #include "Render/Managers/PipelineManager/IPipelineManager.hpp"
 #include "Render/Managers/ShaderManager/IShaderManager.hpp"
 #include "Render/Managers/TextureManager/ITextureManager.hpp"
@@ -89,9 +90,10 @@ class SERUNTIME_API SERuntime
     std::unique_ptr<FrameGraph> m_frameGraph = nullptr;
     FrameAllocator              m_frameAllocator;
 
-    std::unique_ptr<Render::Shader::IShaderManager>     m_shaderManager;
-    std::unique_ptr<Render::Texture::ITextureManager>   m_textureManager;
-    std::unique_ptr<Render::Pipeline::IPipelineManager> m_pipelineManager;
+    std::unique_ptr<Render::Shader::IShaderManager>         m_shaderManager;
+    std::unique_ptr<Render::Texture::ITextureManager>       m_textureManager;
+    std::unique_ptr<Render::Pipeline::IPipelineManager>     m_pipelineManager;
+    std::unique_ptr<Render::Descriptor::IDescriptorManager> m_descriptorManager;
 };
 }  // namespace SE
 

@@ -1,5 +1,6 @@
 #include "VkPipelineManager.hpp"
 
+#include "../../../Managers/DescriptorManager/Vulkan/VkDescriptorManager.hpp"
 #include "../../../Managers/ShaderManager/Vulkan/VkShaderManager.hpp"
 
 namespace SE::Render::Pipeline
@@ -9,14 +10,8 @@ VkPipelineManager::VkPipelineManager() = default;
 
 VkPipelineManager::~VkPipelineManager()
 {
-    if (m_config && m_config->device)  // TODO: not forget.
-    {
-        if (m_descriptorSetLayout != VK_NULL_HANDLE)
-            vkDestroyDescriptorSetLayout(*m_config->device, m_descriptorSetLayout, nullptr);
-
-        if (m_descriptorPool != VK_NULL_HANDLE)
-            vkDestroyDescriptorPool(*m_config->device, m_descriptorPool, nullptr);
-    }
+    if (!m_config || !m_config->device)
+        return;
 
     for (Pipeline& pipeline : m_pipelines)
     {
@@ -32,20 +27,6 @@ SePipelineID VkPipelineManager::createPipeline(PipelineDesc desc)
 {
     if (!m_config || !m_config->device || !m_shaderManager || !m_renderPass)
         return SE_INVALID_PIPELINE_ID;
-
-    // TODO: remove dont use more than one time.
-    VkDescriptorPoolSize poolSize {};
-    poolSize.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize.descriptorCount = 64;  // TODO: make dynamic
-
-    VkDescriptorPoolCreateInfo poolInfo {};
-    poolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = 1;
-    poolInfo.pPoolSizes    = &poolSize;
-    poolInfo.maxSets       = 64;  // TODO: make dynamic
-    poolInfo.flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-
-    vkCreateDescriptorPool(*m_config->device, &poolInfo, nullptr, &m_descriptorPool);
 
     createGraphicsPipeline(desc);
     return m_nextId++;
@@ -113,17 +94,32 @@ void VkPipelineManager::createGraphicsPipeline(PipelineDesc& desc)
     vertexInputInfo.vertexAttributeDescriptionCount = 0;
     vertexInputInfo.pVertexAttributeDescriptions    = nullptr;
 
-    /**  temp this used for real use
+    VkVertexInputBindingDescription                bindingDescription {};
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
 
-    auto bindingDescription    = getBindingDescription();
-    auto attributeDescriptions = getAttributeDescriptions();
+    if (!desc.vertexLayout.attributes.empty())
+    {
+        bindingDescription.binding   = 0;
+        bindingDescription.stride    = desc.vertexLayout.stride;
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;  // TODO: add to the struct field to enable instancing.
 
-    vertexInputInfo.vertexBindingDescriptionCount   = 1;
+        attributeDescriptions.reserve(desc.vertexLayout.attributes.size());
+        for (const auto& attr : desc.vertexLayout.attributes)
+        {
+            VkVertexInputAttributeDescription vkAttr {};
+            vkAttr.binding  = 0;
+            vkAttr.location = attr.location;
+            vkAttr.format   = static_cast<VkFormat>(attr.format);
+            vkAttr.offset   = attr.offset;
+            attributeDescriptions.push_back(vkAttr);
+        }
+    }
+
+    vertexInputInfo.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount   = desc.vertexLayout.attributes.empty() ? 0 : 1;
+    vertexInputInfo.pVertexBindingDescriptions      = desc.vertexLayout.attributes.empty() ? nullptr : &bindingDescription;
     vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-    vertexInputInfo.pVertexBindingDescriptions      = &bindingDescription;
-    vertexInputInfo.pVertexAttributeDescriptions    = attributeDescriptions.data();
-
-    **/
+    vertexInputInfo.pVertexAttributeDescriptions    = attributeDescriptions.empty() ? nullptr : attributeDescriptions.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly {};
     inputAssembly.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -192,25 +188,15 @@ void VkPipelineManager::createGraphicsPipeline(PipelineDesc& desc)
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates    = dynamicStates.data();
 
-    std::vector<VkDescriptorSetLayoutBinding> bindings;
+    VkDescriptorSetLayout setLayout = VK_NULL_HANDLE;
 
-    VkDescriptorSetLayoutBinding samplerLayoutBinding {};
-    samplerLayoutBinding.binding            = desc.bindingSlot;
-    samplerLayoutBinding.descriptorType     = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    samplerLayoutBinding.descriptorCount    = desc.descriptorCount;
-    samplerLayoutBinding.stageFlags         = toShaderStages(desc.resourceStages);
-    samplerLayoutBinding.pImmutableSamplers = nullptr;
-
-    bindings.push_back(samplerLayoutBinding);
-
-    VkDescriptorSetLayoutCreateInfo layoutInfo {};
-    layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-    layoutInfo.pBindings    = bindings.data();
-
-    if (vkCreateDescriptorSetLayout(*m_config->device, &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS)
+    if (desc.DescriptorId != SE_INVALID_DESCRIPTOR_ID)
     {
-        throw std::runtime_error("failed to create descriptor set layout!");
+        auto* handle = static_cast<Descriptor::Descriptor*>(m_descriptorManager->getDescriptor(desc.DescriptorId));
+        if (!handle)
+            throw std::runtime_error("invalid descriptor id passed to pipeline");
+
+        setLayout = handle->layout;
     }
 
     VkPushConstantRange pushConstantRange = {};
@@ -226,8 +212,8 @@ void VkPipelineManager::createGraphicsPipeline(PipelineDesc& desc)
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo {};
     pipelineLayoutInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount         = 1;
-    pipelineLayoutInfo.pSetLayouts            = &m_descriptorSetLayout;
+    pipelineLayoutInfo.setLayoutCount         = (setLayout != VK_NULL_HANDLE) ? 1 : 0;
+    pipelineLayoutInfo.pSetLayouts            = (setLayout != VK_NULL_HANDLE) ? &setLayout : nullptr;
     pipelineLayoutInfo.pushConstantRangeCount = pushConstantCount;
     pipelineLayoutInfo.pPushConstantRanges    = (pushConstantCount > 0) ? &pushConstantRange : nullptr;
 

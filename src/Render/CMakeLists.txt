@@ -5,6 +5,7 @@ add_library(Render
     Managers/TextureManager/Vulkan/VkTextureManager.cpp
     Managers/ShaderManager/Vulkan/VkShaderManager.cpp
     Managers/PipelineManager/Vulkan/VkPipelineManager.cpp
+    Managers/DescriptorManager/Vulkan/VkDescriptorManager.cpp
 )
 
 target_include_directories(Render PUBLIC

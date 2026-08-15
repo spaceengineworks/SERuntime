@@ -10,10 +10,6 @@
 #include "../../render_core.hpp"
 #include "../ShaderManager/IShaderManager.hpp"
 
-#define CHECK_FLAG(flags, bit) ((flags & bit) ? true : false)
-#define SET_FLAG(flags, bit)   (flags |= bit)
-#define CLEAR_FLAG(flags, bit) (flags &= ~bit)
-
 namespace SE::Render::Pipeline
 {
 
@@ -172,9 +168,13 @@ inline ShaderStage operator|(ShaderStage a, ShaderStage b)
 
 struct PipelineDesc
 {
+    uint32_t DescriptorId = static_cast<uint32_t>(SE_INVALID_DESCRIPTOR_ID);
+
     std::vector<SeShaderID> shaders = {};
     uint32_t                stageCount;
     uint32_t                flags = 0;
+
+    Render::VertexLayoutDesc vertexLayout = {};
 
     PolygonMode polygonMode             = PolygonMode::FILL;
     float       lineWidth               = 1.0f;
@@ -203,10 +203,6 @@ struct PipelineDesc
     float       blendConstants[4]   = {0.0f, 0.0f, 0.0f, 0.0f};
 
     std::vector<DynamicState> dynamicStates = {};
-
-    uint32_t    bindingSlot     = 0;
-    uint32_t    descriptorCount = 1;
-    ShaderStage resourceStages  = ShaderStage::FRAGMENT;
 
     ShaderStage pushConstantStages = ShaderStage::NONE;
     uint32_t    pushConstantOffset = 0;

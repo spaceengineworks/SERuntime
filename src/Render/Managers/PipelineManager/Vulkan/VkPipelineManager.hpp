@@ -1,9 +1,9 @@
 #ifndef VK_PIPELINE_MANAGER_HPP
 #define VK_PIPELINE_MANAGER_HPP
 
-#include <array>
 #include <vector>
 
+#include "../../../Managers/DescriptorManager/IDescriptorManager.hpp"
 #include "../../../Managers/ShaderManager/IShaderManager.hpp"
 #include "../../../RHI/Vulkan/VulkanConfig.hpp"
 #include "../IPipelineManager.hpp"
@@ -39,6 +39,12 @@ class VkPipelineManager : public IPipelineManager
             m_shaderManager = shaderManager;
     }
 
+    void setDescriptorManager(SE::Render::Descriptor::IDescriptorManager* mgr)
+    {
+        if (mgr)
+            m_descriptorManager = mgr;
+    }
+
     void setVkRenderPass(void* renderPass) override
     {
         if (renderPass)
@@ -46,45 +52,15 @@ class VkPipelineManager : public IPipelineManager
     }
 
    private:
-    SharedVulkanConfig*                 m_config        = nullptr;
-    VkRenderPass                        m_renderPass    = VK_NULL_HANDLE;
-    SE::Render::Shader::IShaderManager* m_shaderManager = nullptr;
+    SharedVulkanConfig*                         m_config            = nullptr;
+    VkRenderPass                                m_renderPass        = VK_NULL_HANDLE;
+    SE::Render::Shader::IShaderManager*         m_shaderManager     = nullptr;
+    SE::Render::Descriptor::IDescriptorManager* m_descriptorManager = nullptr;
 
     std::vector<Pipeline> m_pipelines;
     SePipelineID          m_nextId = 0;
 
-    // TODO: need manager
-    VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
-    VkDescriptorPool      m_descriptorPool      = VK_NULL_HANDLE;
-    //
-
     void createGraphicsPipeline(PipelineDesc& desc);
-
-    // TODO: make general.
-
-    static VkVertexInputBindingDescription getBindingDescription()
-    {
-        VkVertexInputBindingDescription bindingDescription {};
-        bindingDescription.binding   = 0;
-        bindingDescription.stride    = sizeof(Vertex);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-        return bindingDescription;
-    }
-
-    static std::array<VkVertexInputAttributeDescription, SIZE_OF_ATTRIBUTES> getAttributeDescriptions()
-    {
-        std::array<VkVertexInputAttributeDescription, SIZE_OF_ATTRIBUTES> attributeDescriptions {};
-
-        attributeDescriptions[POSITION_IN_ATTRIBUTES].binding  = 0;
-        attributeDescriptions[POSITION_IN_ATTRIBUTES].location = POSITION_IN_ATTRIBUTES;
-        attributeDescriptions[POSITION_IN_ATTRIBUTES].format   = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions[POSITION_IN_ATTRIBUTES].offset   = POSITION_POS;
-
-        return attributeDescriptions;
-    }
-
-    //
 
     static VkPolygonMode toVkPolygonMode(PolygonMode mode)
     {

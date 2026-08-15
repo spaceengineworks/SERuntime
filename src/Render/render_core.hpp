@@ -16,16 +16,18 @@ struct PushConstants
     float screenHeight;
 };
 
-int constexpr SIZE_OF_ATTRIBUTES = 1;
-
-size_t constexpr POSITION_POS = offsetof(Vertex, x);
-
-enum
+struct VertexAttributeDesc
 {
-    POSITION_IN_ATTRIBUTES = 0,
-    COLOR_IN_ATTRIBUTES    = 1,
-    UV_IN_ATTRIBUTES       = 2,
-    WH_IN_ATTRIBUTES       = 3
+    uint32_t location = 0;
+    uint32_t format   = 0;
+    uint32_t offset   = 0;
+};
+
+struct VertexLayoutDesc
+{
+    // TODO: add input rate.
+    uint32_t                         stride     = 0;
+    std::vector<VertexAttributeDesc> attributes = {};
 };
 
 }  // namespace SE::Render

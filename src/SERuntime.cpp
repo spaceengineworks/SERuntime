@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <tracy/Tracy.hpp>
 
+#include "Render/Managers/DescriptorManager/Vulkan/VkDescriptorManager.hpp"
 #include "Render/Managers/PipelineManager/Vulkan/VkPipelineManager.hpp"
 #include "Render/Managers/ShaderManager/Vulkan/VkShaderManager.hpp"
 #include "Render/Managers/TextureManager/Vulkan/VkTextureManager.hpp"
@@ -26,9 +27,10 @@ std::unique_ptr<RHI> createRenderContext(SeRender render)
 
 struct BackendManagers
 {
-    std::unique_ptr<Render::Shader::IShaderManager>     shaderManager;
-    std::unique_ptr<Render::Texture::ITextureManager>   textureManager;
-    std::unique_ptr<Render::Pipeline::IPipelineManager> pipelineManager;
+    std::unique_ptr<Render::Shader::IShaderManager>         shaderManager;
+    std::unique_ptr<Render::Texture::ITextureManager>       textureManager;
+    std::unique_ptr<Render::Pipeline::IPipelineManager>     pipelineManager;
+    std::unique_ptr<Render::Descriptor::IDescriptorManager> descriptorManager;
 };
 
 BackendManagers createBackendManagers(SeRender render, SharedVulkanConfig* config)
@@ -41,15 +43,18 @@ BackendManagers createBackendManagers(SeRender render, SharedVulkanConfig* confi
         case SeRender::Vulkan:
         {
             BackendManagers managers {};
-            managers.shaderManager   = std::make_unique<Render::Shader::VkShaderManager>();
-            managers.textureManager  = std::make_unique<Render::Texture::VkTextureManager>();
-            managers.pipelineManager = std::make_unique<Render::Pipeline::VkPipelineManager>();
+            managers.shaderManager     = std::make_unique<Render::Shader::VkShaderManager>();
+            managers.textureManager    = std::make_unique<Render::Texture::VkTextureManager>();
+            managers.pipelineManager   = std::make_unique<Render::Pipeline::VkPipelineManager>();
+            managers.descriptorManager = std::make_unique<Render::Descriptor::VkDescriptorManager>();
 
             static_cast<Render::Shader::VkShaderManager*>(managers.shaderManager.get())->setConfig(config);
             static_cast<Render::Texture::VkTextureManager*>(managers.textureManager.get())->setConfig(config);
             static_cast<Render::Pipeline::VkPipelineManager*>(managers.pipelineManager.get())->setConfig(config);
+            static_cast<Render::Descriptor::VkDescriptorManager*>(managers.descriptorManager.get())->setConfig(config);
 
             static_cast<Render::Pipeline::VkPipelineManager*>(managers.pipelineManager.get())->setShaderManager(managers.shaderManager.get());
+            static_cast<Render::Pipeline::VkPipelineManager*>(managers.pipelineManager.get())->setDescriptorManager(managers.descriptorManager.get());
 
             return managers;
         }
@@ -69,9 +74,10 @@ void SERuntime::initEngine()
     auto* config  = static_cast<SharedVulkanConfig*>(m_context->passConfig());
     auto  backend = detail::createBackendManagers(m_API_render, config);
 
-    m_shaderManager   = std::move(backend.shaderManager);
-    m_textureManager  = std::move(backend.textureManager);
-    m_pipelineManager = std::move(backend.pipelineManager);
+    m_shaderManager     = std::move(backend.shaderManager);
+    m_textureManager    = std::move(backend.textureManager);
+    m_pipelineManager   = std::move(backend.pipelineManager);
+    m_descriptorManager = std::move(backend.descriptorManager);
 
     if (m_API_render == Vulkan)
     {
@@ -109,6 +115,15 @@ void SERuntime::initEngine()
 
     Render::Pipeline::PipelineDesc desc {};
 
+    // Render::VertexLayoutDesc vertexLayout {};
+    // vertexLayout.stride     = sizeof(Render::Vertex);
+    // vertexLayout.attributes = {
+    //     {/*location*/ 0, /*format*/ static_cast<uint32_t>(VK_FORMAT_R32G32_SFLOAT), offsetof(Render::Vertex, x)},
+    //     {/*location*/ 1, /*format*/ static_cast<uint32_t>(VK_FORMAT_R8G8B8A8_UNORM), offsetof(Render::Vertex, r)},
+    // };
+
+    // desc.vertexLayout = vertexLayout;
+
     desc.shaders    = {vertId, fragId};
     desc.stageCount = 2;
     desc.flags      = 0;
@@ -122,9 +137,6 @@ void SERuntime::initEngine()
     desc.viewportCount = 1;
     desc.scissorCount  = 1;
     desc.dynamicStates = {Render::Pipeline::DynamicState::VIEWPORT, Render::Pipeline::DynamicState::SCISSOR};
-
-    desc.descriptorCount = 0;
-    desc.resourceStages  = Render::Pipeline::ShaderStage::NONE;
 
     desc.pushConstantStages = Render::Pipeline::ShaderStage::NONE;
     desc.pushConstantSize   = 0;
