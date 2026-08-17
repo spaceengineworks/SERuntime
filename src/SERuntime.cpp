@@ -1,4 +1,7 @@
-#include "SERuntime.hpp"
+//
+#define STB_IMAGE_IMPLEMENTATION
+#include "ThirdParty/stb_image.h"
+//
 
 #include <iostream>
 #include <stdexcept>
@@ -9,6 +12,7 @@
 #include "Render/Managers/ShaderManager/Vulkan/VkShaderManager.hpp"
 #include "Render/Managers/TextureManager/Vulkan/VkTextureManager.hpp"
 #include "Render/RHI/Vulkan/VulkanDevice.hpp"
+#include "SERuntime.hpp"
 
 namespace SE
 {
@@ -86,68 +90,6 @@ void SERuntime::initEngine()
         m_pipelineManager->setVkRenderPass(vkDevice->getRenderPassPtr());
     }
 
-    const char* vertSource = R"(
-    #version 450
-
-    vec2 positions[3] = vec2[](
-        vec2( 0.0, -0.5),
-        vec2( 0.5,  0.5),
-        vec2(-0.5,  0.5)
-    );
-
-    void main() {
-        gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
-    }
-)";
-
-    const char* fragSource = R"(
-    #version 450
-
-    layout(location = 0) out vec4 outColor;
-
-    void main() {
-        outColor = vec4(1.0, 0.5, 0.0, 1.0);
-    }
-)";
-
-    auto vertId = m_shaderManager->createShader({vertSource, "temp_vert.spv", Render::Shader::vertex_shader});
-    auto fragId = m_shaderManager->createShader({fragSource, "temp_frag.spv", Render::Shader::fragment_shader});
-
-    Render::Pipeline::PipelineDesc desc {};
-
-    // Render::VertexLayoutDesc vertexLayout {};
-    // vertexLayout.stride     = sizeof(Render::Vertex);
-    // vertexLayout.attributes = {
-    //     {/*location*/ 0, /*format*/ static_cast<uint32_t>(VK_FORMAT_R32G32_SFLOAT), offsetof(Render::Vertex, x)},
-    //     {/*location*/ 1, /*format*/ static_cast<uint32_t>(VK_FORMAT_R8G8B8A8_UNORM), offsetof(Render::Vertex, r)},
-    // };
-
-    // desc.vertexLayout = vertexLayout;
-
-    desc.shaders    = {vertId, fragId};
-    desc.stageCount = 2;
-    desc.flags      = 0;
-
-    desc.topology    = Render::Pipeline::PrimitiveTopology::TRIANGLE_LIST;
-    desc.polygonMode = Render::Pipeline::PolygonMode::FILL;
-    desc.cullMode    = Render::Pipeline::CullMode::NONE;
-
-    desc.sampleCount = Render::Pipeline::SampleCount::SAMPLE_COUNT_1;
-
-    desc.viewportCount = 1;
-    desc.scissorCount  = 1;
-    desc.dynamicStates = {Render::Pipeline::DynamicState::VIEWPORT, Render::Pipeline::DynamicState::SCISSOR};
-
-    desc.pushConstantStages = Render::Pipeline::ShaderStage::NONE;
-    desc.pushConstantSize   = 0;
-
-    desc.colorWriteMask      = Render::Pipeline::COLOR_COMPONENT_ALL;
-    desc.srcColorBlendFactor = Render::Pipeline::BlendFactor::ONE;
-    desc.dstColorBlendFactor = Render::Pipeline::BlendFactor::ZERO;
-    desc.colorBlendOp        = Render::Pipeline::BlendOp::ADD;
-
-    m_pipelineManager->createPipeline(desc);
-
     m_frameGraph = std::make_unique<FrameGraph>(m_context.get());
     if (!m_frameGraph)
         throw std::runtime_error("frame graph not init.");
@@ -169,7 +111,6 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
     m_context->viewPortCommandBuffer();
     m_context->createSyncObjects();
 
-    // PassClearParameters* clear = new PassClearParameters();
     PassClearParameters* clear = m_frameAllocator.allocateFrameParams<PassClearParameters>();
     clear->m_clearColor[0]     = 0.1f;
     clear->m_clearColor[1]     = 0.15f;
@@ -221,15 +162,152 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
                           ctx->beginRenderPass();
                       });
 
-    auto* pipelineMgr = m_pipelineManager.get();
+    static Render::Shader::SeShaderID         s_vertId     = SE_INVALID_SHADER_ID;
+    static Render::Shader::SeShaderID         s_fragId     = SE_INVALID_SHADER_ID;
+    static Render::Pipeline::SePipelineID     s_pipelineId = SE_INVALID_PIPELINE_ID;
+    static Render::Texture::SeTextureID       s_textureId  = SE_INVALID_TEXTURE_ID;
+    static Render::Descriptor::SeDescriptorID s_descId     = SE_INVALID_DESCRIPTOR_ID;
 
-    m_frameGraph->add("draw_triangle", GPUFlags::Render, clear,
-                      [pipelineMgr](RHI* ctx)
+    if (s_textureId == SE_INVALID_TEXTURE_ID)
+    {
+        SE::Render::Texture::TextureDesc defaultTexture {};
+
+        int            _width, _height, _channels;
+        unsigned char* data = stbi_load("C:/Users/ilanv/Downloads/good.jpg", &_width, &_height, &_channels, 4);
+
+        defaultTexture.imageType = 1;
+        defaultTexture.format    = 37;
+        defaultTexture.width     = _width;
+        defaultTexture.height    = _height;
+        defaultTexture.depth     = 1;
+
+        defaultTexture.mipLevels   = 1;
+        defaultTexture.levelCount  = 1;
+        defaultTexture.arrayLayers = 1;
+        defaultTexture.layerCount  = 1;
+
+        defaultTexture.sampleCount   = 1;
+        defaultTexture.tiling        = 0;
+        defaultTexture.sharingMode   = 0;
+        defaultTexture.initialLayout = 0;
+
+        defaultTexture.usage = 20 | 2;
+
+        defaultTexture.pixelData = data;
+        defaultTexture.dataSize  = static_cast<size_t>(_width) * _height * 4;
+
+        s_textureId = m_textureManager->createTexture(defaultTexture);
+
+        stbi_image_free(data);
+
+        if (s_textureId == SE_INVALID_TEXTURE_ID)
+            throw std::runtime_error("failed to create default texture!");
+
+        Render::Descriptor::DescriptorDesc bindDesc {};
+
+        Render::Descriptor::DescriptorBindingDesc bind {};
+        auto*                                     texData = static_cast<Render::Texture::TextureData*>(m_textureManager->getTextureHandle(s_textureId));
+
+        bind.imageView  = texData->imageView;
+        bind.sampler    = texData->sampler;
+        bind.binding    = 0;
+        bind.type       = Render::Descriptor::DescriptorType::COMBINED_IMAGE_SAMPLER;
+        bind.stageFlags = static_cast<uint32_t>(Render::Pipeline::ShaderStage::FRAGMENT);
+
+        bindDesc.bindings.push_back(bind);
+
+        s_descId = m_descriptorManager->createDescriptor(bindDesc);
+
+        if (s_descId == SE_INVALID_DESCRIPTOR_ID)
+            throw std::runtime_error("failed to create texture descriptor!");
+
+        const char* fragSource = R"(
+        #version 450
+
+        layout(location = 0) out vec4 outColor;
+        layout(location = 0) in vec2 fragUV;
+
+        layout(set = 0, binding = 0) uniform sampler2D uTexture;
+
+        void main() {
+            outColor = texture(uTexture, fragUV);
+        }
+    )";
+
+        const char* vertSource = R"(
+        #version 450
+
+        vec2 positions[6] = vec2[](
+            vec2(-0.5, -0.5),
+            vec2( 0.5, -0.5),
+            vec2( 0.5,  0.5),
+
+            vec2(-0.5, -0.5),
+            vec2( 0.5,  0.5),
+            vec2(-0.5,  0.5)
+        );
+
+        layout(location = 0) out vec2 fragUV;
+
+        void main() {
+            vec2 vertexPos = positions[gl_VertexIndex];
+            fragUV = vertexPos + vec2(0.5);
+
+            gl_Position = vec4(vertexPos, 0.0, 1.0);
+        }
+    )";
+
+        s_vertId = m_shaderManager->createShader({vertSource, "temp_vert.spv", Render::Shader::vertex_shader});
+        s_fragId = m_shaderManager->createShader({fragSource, "temp_frag.spv", Render::Shader::fragment_shader});
+
+        Render::Pipeline::PipelineDesc pdesc {};
+        pdesc.DescriptorId = s_descId;
+
+        pdesc.shaders    = {s_vertId, s_fragId};
+        pdesc.stageCount = 2;
+        pdesc.flags      = 0;
+
+        pdesc.topology    = Render::Pipeline::PrimitiveTopology::TRIANGLE_LIST;
+        pdesc.polygonMode = Render::Pipeline::PolygonMode::FILL;
+        pdesc.cullMode    = Render::Pipeline::CullMode::NONE;
+
+        pdesc.sampleCount = Render::Pipeline::SampleCount::SAMPLE_COUNT_1;
+
+        pdesc.viewportCount = 1;
+        pdesc.scissorCount  = 1;
+        pdesc.dynamicStates = {Render::Pipeline::DynamicState::VIEWPORT, Render::Pipeline::DynamicState::SCISSOR};
+
+        pdesc.pushConstantStages = Render::Pipeline::ShaderStage::NONE;
+        pdesc.pushConstantSize   = 0;
+
+        pdesc.colorWriteMask      = Render::Pipeline::COLOR_COMPONENT_ALL;
+        pdesc.srcColorBlendFactor = Render::Pipeline::BlendFactor::ONE;
+        pdesc.dstColorBlendFactor = Render::Pipeline::BlendFactor::ZERO;
+        pdesc.colorBlendOp        = Render::Pipeline::BlendOp::ADD;
+
+        s_pipelineId = m_pipelineManager->createPipeline(pdesc);
+
+        if (s_pipelineId == SE_INVALID_PIPELINE_ID)
+            throw std::runtime_error("failed to create triangle pipeline!");
+    }
+
+    PassDrawParameters* draw = m_frameAllocator.allocateFrameParams<PassDrawParameters>();
+    draw->textureHandle      = s_textureId;
+    draw->descHandle         = s_descId;
+
+    auto*    pipelineMgr   = m_pipelineManager.get();
+    auto*    descriptorMgr = m_descriptorManager.get();
+    uint32_t pipelineId    = s_pipelineId;
+
+    m_frameGraph->add("draw_triangle", GPUFlags::Render, draw,
+                      [pipelineMgr, descriptorMgr, pipelineId, draw](RHI* ctx)
                       {
-                          ctx->bindPipe(pipelineMgr->getPipelineHandle(0));
+                          ctx->bindPipe(pipelineMgr->getPipelineHandle(pipelineId));
 
                           ctx->setViewport();
                           ctx->setScissor();
+
+                          ctx->bindDescriptorSet(descriptorMgr->getDescriptor(draw->descHandle), pipelineMgr->getPipelineHandle(pipelineId));
 
                           ctx->callDraw();
                           ctx->endRenderPass();

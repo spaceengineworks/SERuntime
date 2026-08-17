@@ -4,21 +4,23 @@
 #include <queue>
 #include <vector>
 
-#include "../ITextureManager.hpp"
 #include "../../../RHI/Vulkan/VulkanConfig.hpp"
+#include "../ITextureManager.hpp"
 #include "vk_mem_alloc.h"
 
 namespace SE::Render::Texture
 {
 
+struct TextureData
+{
+    VkImage     image;
+    VkImageView imageView;
+    VkSampler   sampler;
+};
+
 struct Texture
 {
-    struct TextureData
-    {
-        VkImage     image;
-        VkImageView imageView;
-        VkSampler   sampler;
-    } TextureData;
+    TextureData data;
 
     VmaAllocation allocation;
     bool          isValid = false;

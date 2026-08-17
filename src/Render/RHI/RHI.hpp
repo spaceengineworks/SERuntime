@@ -86,11 +86,12 @@ class RHI
     virtual void beginRenderPass() = 0;
 
     /* frame graph methods */
-    virtual void callDraw()             = 0;
-    virtual void bindPipe(void* handle) = 0;
-    virtual void setViewport()          = 0;
-    virtual void setScissor()           = 0;
-    virtual void endRenderPass()        = 0;
+    virtual void callDraw()                                  = 0;
+    virtual void bindPipe(void* handle)                      = 0;
+    virtual void setViewport()                               = 0;
+    virtual void setScissor()                                = 0;
+    virtual void bindDescriptorSet(void* handle, void* pipe) = 0;
+    virtual void endRenderPass()                             = 0;
     /*---------------------*/
 };
 }  // namespace SE

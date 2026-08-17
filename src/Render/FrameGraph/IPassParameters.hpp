@@ -18,7 +18,7 @@ enum class ResourceType
 struct ResourceField
 {
     ResourceType type = ResourceType::none;
-    int          handle;
+    uint32_t     handle;
 };
 
 class IPassParameters
@@ -43,7 +43,24 @@ class PassClearParameters : public IPassParameters
 
     std::vector<ResourceField> getResources() override
     {
-        return {{ResourceType::none, -1}};
+        return {{ResourceType::none, UINT32_MAX}};
+    }
+
+   private:
+};
+
+class PassDrawParameters : public IPassParameters
+{
+   public:
+    PassDrawParameters()           = default;
+    ~PassDrawParameters() override = default;
+
+    uint32_t textureHandle = 0;
+    uint32_t descHandle    = 0;
+
+    std::vector<ResourceField> getResources() override
+    {
+        return {{ResourceType::texture, textureHandle}};
     }
 
    private:

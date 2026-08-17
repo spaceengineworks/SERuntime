@@ -11,11 +11,11 @@ VkTextureManager::~VkTextureManager()
 {
     for (Texture& tex : m_textures)
     {
-        if (tex.TextureData.imageView != VK_NULL_HANDLE)
-            vkDestroyImageView(*m_config->device, tex.TextureData.imageView, nullptr);
+        if (tex.data.imageView != VK_NULL_HANDLE)
+            vkDestroyImageView(*m_config->device, tex.data.imageView, nullptr);
 
-        if (tex.TextureData.image != VK_NULL_HANDLE)
-            vmaDestroyImage(*m_config->allocator, tex.TextureData.image, tex.allocation);
+        if (tex.data.image != VK_NULL_HANDLE)
+            vmaDestroyImage(*m_config->allocator, tex.data.image, tex.allocation);
     }
 
     for (VkSampler sampler : m_textureSamplers)
@@ -80,10 +80,10 @@ SeTextureID VkTextureManager::createTexture(TextureDesc desc)
     }
 
     Texture texture;
-    texture.TextureData.image     = textureImage;
-    texture.TextureData.imageView = textureImageView;
-    texture.TextureData.sampler   = getOrCreateDefaultSampler(LINEAR);
-    texture.allocation            = textureAllocation;
+    texture.data.image     = textureImage;
+    texture.data.imageView = textureImageView;
+    texture.data.sampler   = getOrCreateDefaultSampler(LINEAR);
+    texture.allocation     = textureAllocation;
 
     if (!m_freeTextureIds.empty())
     {
@@ -105,17 +105,17 @@ SeResult VkTextureManager::destroyTexture(SeTextureID textureId)
 
     Texture& tex = m_textures[textureId];
 
-    if (tex.TextureData.image == VK_NULL_HANDLE)
+    if (tex.data.image == VK_NULL_HANDLE)
         return FAILED_TO_DESTROY;
 
-    if (tex.TextureData.imageView != VK_NULL_HANDLE)
-        vkDestroyImageView(*(m_config->device), tex.TextureData.imageView, nullptr);
+    if (tex.data.imageView != VK_NULL_HANDLE)
+        vkDestroyImageView(*(m_config->device), tex.data.imageView, nullptr);
 
-    vmaDestroyImage(*(m_config->allocator), tex.TextureData.image, tex.allocation);
+    vmaDestroyImage(*(m_config->allocator), tex.data.image, tex.allocation);
 
-    tex.TextureData.image     = VK_NULL_HANDLE;
-    tex.TextureData.imageView = VK_NULL_HANDLE;
-    tex.allocation            = nullptr;
+    tex.data.image     = VK_NULL_HANDLE;
+    tex.data.imageView = VK_NULL_HANDLE;
+    tex.allocation     = nullptr;
 
     m_freeTextureIds.push(textureId);
 
@@ -128,10 +128,10 @@ SeTextureHandle VkTextureManager::getTextureHandle(SeTextureID textureId)
         return nullptr;
 
     Texture& tex = m_textures[textureId];
-    if (tex.TextureData.image == VK_NULL_HANDLE)
+    if (tex.data.image == VK_NULL_HANDLE)
         return nullptr;
 
-    return static_cast<SeTextureHandle>(&tex.TextureData);
+    return static_cast<SeTextureHandle>(&tex.data);
 }
 
 /* Methods to change layout one time */

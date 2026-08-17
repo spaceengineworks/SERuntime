@@ -61,7 +61,7 @@ SePipelineHandle VkPipelineManager::getPipelineHandle(SePipelineID pipelineId)
     if (pipeline.pipeline == VK_NULL_HANDLE || pipeline.pipelineLayout == VK_NULL_HANDLE)
         return nullptr;
 
-    return reinterpret_cast<SePipelineHandle>(pipeline.pipeline);
+    return reinterpret_cast<SePipelineHandle>(&pipeline);
 }
 
 /* Methods for pipeline */

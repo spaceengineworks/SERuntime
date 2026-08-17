@@ -14,6 +14,10 @@
 #include "VulkanConfig.hpp"
 #include "vk_mem_alloc.h"
 
+//
+#include "../../../Render/Managers/DescriptorManager/Vulkan/VkDescriptorManager.hpp"
+#include "../../../Render/Managers/PipelineManager/Vulkan/VkPipelineManager.hpp"
+
 namespace SE
 {
 class VulkanDevice : public RHI
@@ -82,13 +86,16 @@ class VulkanDevice : public RHI
 
     virtual void callDraw()
     {
-        vkCmdDraw(m_currCmdBuff, 3, 1, 0, 0);
+        vkCmdDraw(m_currCmdBuff, 6, 1, 0, 0);
     }
 
     virtual void bindPipe(void* handle)
     {
-        VkPipeline pipeline = reinterpret_cast<VkPipeline>(handle);
-        vkCmdBindPipeline(m_currCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+        auto* pipeline = static_cast<SE::Render::Pipeline::Pipeline*>(handle);
+        if (!pipeline)
+            return;
+
+        vkCmdBindPipeline(m_currCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
     }
 
     virtual void setViewport()
@@ -109,6 +116,16 @@ class VulkanDevice : public RHI
         scissor.offset = {0, 0};
         scissor.extent = {m_viewPortWidth, m_viewPortHeight};
         vkCmdSetScissor(m_currCmdBuff, 0, 1, &scissor);
+    }
+
+    virtual void bindDescriptorSet(void* handle, void* pipe)
+    {
+        if (!handle)
+            return;
+
+        auto* pipeline   = static_cast<SE::Render::Pipeline::Pipeline*>(pipe);
+        auto* descriptor = static_cast<SE::Render::Descriptor::Descriptor*>(handle);
+        vkCmdBindDescriptorSets(m_currCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipelineLayout, 0, 1, &descriptor->set, 0, nullptr);
     }
     /*---------------------*/
 
