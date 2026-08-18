@@ -92,6 +92,18 @@ enum class BlendOp : uint32_t
     MAX
 };
 
+enum class CompareOp : uint32_t
+{
+    NEVER,
+    LESS,
+    EQUAL,
+    LESS_OR_EQUAL,
+    GREATER,
+    NOT_EQUAL,
+    GREATER_OR_EQUAL,
+    ALWAYS
+};
+
 enum ColorComponentBits : uint32_t
 {
     COLOR_COMPONENT_R_BIT = 1 << 0,
@@ -143,14 +155,18 @@ enum class DynamicState : uint32_t
 
 enum FlagBits : uint32_t
 {
-    CLAMP_BIT             = 1 << 0,
-    DISCARD_BIT           = 1 << 1,
-    DEPTH_BIAS_BIT        = 1 << 2,
-    PRIMITIVE_RESTART     = 1 << 3,
-    SHADING_BIT           = 1 << 4,
-    ALPHA_TO_COVERAGE_BIT = 1 << 5,
-    ALPHA_TO_ONE_BIT      = 1 << 6,
-    BLEND_ENABLE_BIT      = 1 << 7
+    CLAMP_BIT               = 1 << 0,
+    DISCARD_BIT             = 1 << 1,
+    DEPTH_BIAS_BIT          = 1 << 2,
+    PRIMITIVE_RESTART       = 1 << 3,
+    SHADING_BIT             = 1 << 4,
+    ALPHA_TO_COVERAGE_BIT   = 1 << 5,
+    ALPHA_TO_ONE_BIT        = 1 << 6,
+    BLEND_ENABLE_BIT        = 1 << 7,
+    DEPTH_TEST_ENABLE       = 1 << 8,
+    DEPTH_WRITE_ENABLE      = 1 << 11,
+    DEPTH_BOUND_TEST_ENABLE = 1 << 12,
+    STENCIL_TEST_ENABLE     = 1 << 13
 };
 
 enum class ShaderStage : uint32_t
@@ -192,6 +208,10 @@ struct PipelineDesc
     SampleCount sampleCount      = SampleCount::SAMPLE_COUNT_1;
     float       minSampleShading = 1.0f;
     uint32_t    sampleMask       = 0xFFFFFFFF;
+
+    CompareOp depthCompareOp = CompareOp::LESS;
+    float     minDepthBounds = 0.0f; /* 0.0-1.0 */
+    float     maxDepthBounds = 0.0f; /* 0.0-1.0 */
 
     uint32_t    colorWriteMask      = COLOR_COMPONENT_ALL;
     BlendFactor srcColorBlendFactor = BlendFactor::SRC_ALPHA;

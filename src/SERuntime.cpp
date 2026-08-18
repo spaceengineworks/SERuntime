@@ -1,4 +1,4 @@
-//
+// TODO:
 #define STB_IMAGE_IMPLEMENTATION
 #include "ThirdParty/stb_image.h"
 //
@@ -221,41 +221,53 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
         if (s_descId == SE_INVALID_DESCRIPTOR_ID)
             throw std::runtime_error("failed to create texture descriptor!");
 
-        const char* fragSource = R"(
-        #version 450
-
-        layout(location = 0) out vec4 outColor;
-        layout(location = 0) in vec2 fragUV;
-
-        layout(set = 0, binding = 0) uniform sampler2D uTexture;
-
-        void main() {
-            outColor = texture(uTexture, fragUV);
-        }
-    )";
-
         const char* vertSource = R"(
-        #version 450
+    #version 450
 
-        vec2 positions[6] = vec2[](
-            vec2(-0.5, -0.5),
-            vec2( 0.5, -0.5),
-            vec2( 0.5,  0.5),
+    vec3 positions[12] = vec3[](
+        vec3(-0.4, -0.4, -0.3), vec3(-0.4,  0.4, -0.3), vec3( 0.4,  0.4, -0.3),
+        vec3(-0.4, -0.4, -0.3), vec3( 0.4,  0.4, -0.3), vec3( 0.4, -0.4, -0.3),
 
-            vec2(-0.5, -0.5),
-            vec2( 0.5,  0.5),
-            vec2(-0.5,  0.5)
-        );
+        vec3(-0.4, -0.4,  0.3), vec3(-0.4,  0.4,  0.3), vec3( 0.4,  0.4,  0.3),
+        vec3(-0.4, -0.4,  0.3), vec3( 0.4,  0.4,  0.3), vec3( 0.4, -0.4,  0.3)
+    );
 
-        layout(location = 0) out vec2 fragUV;
+    vec2 uvs[12] = vec2[](
+        vec2(0.0, 0.0), vec2(0.0, 1.0), vec2(1.0, 1.0),
+        vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(1.0, 0.0),
 
-        void main() {
-            vec2 vertexPos = positions[gl_VertexIndex];
-            fragUV = vertexPos + vec2(0.5);
+        vec2(0.0, 0.0), vec2(0.0, 1.0), vec2(1.0, 1.0),
+        vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(1.0, 0.0)
+    );
 
-            gl_Position = vec4(vertexPos, 0.0, 1.0);
-        }
-    )";
+    layout(location = 0) out vec2 fragUV;
+    
+    layout(push_constant) uniform PushConstants {
+        mat4 mvp;
+    } push;
+
+    void main() {
+        vec4 pos = push.mvp * vec4(positions[gl_VertexIndex], 1.0);
+        
+        pos.z = pos.z * 0.4 + 0.5;
+
+        gl_Position = pos;
+        fragUV = uvs[gl_VertexIndex];
+    }
+)";
+
+        const char* fragSource = R"(
+    #version 450
+
+    layout(location = 0) out vec4 outColor;
+    layout(location = 0) in vec2 fragUV;
+
+    layout(set = 0, binding = 0) uniform sampler2D uTexture;
+
+    void main() {
+        outColor = texture(uTexture, fragUV);
+    }
+)";
 
         s_vertId = m_shaderManager->createShader({vertSource, "temp_vert.spv", Render::Shader::vertex_shader});
         s_fragId = m_shaderManager->createShader({fragSource, "temp_frag.spv", Render::Shader::fragment_shader});
@@ -265,7 +277,7 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
 
         pdesc.shaders    = {s_vertId, s_fragId};
         pdesc.stageCount = 2;
-        pdesc.flags      = 0;
+        pdesc.flags      = Render::Pipeline::DEPTH_TEST_ENABLE | Render::Pipeline::DEPTH_WRITE_ENABLE;
 
         pdesc.topology    = Render::Pipeline::PrimitiveTopology::TRIANGLE_LIST;
         pdesc.polygonMode = Render::Pipeline::PolygonMode::FILL;
@@ -273,12 +285,14 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
 
         pdesc.sampleCount = Render::Pipeline::SampleCount::SAMPLE_COUNT_1;
 
+        pdesc.depthCompareOp = Render::Pipeline::CompareOp::LESS;
+
         pdesc.viewportCount = 1;
         pdesc.scissorCount  = 1;
         pdesc.dynamicStates = {Render::Pipeline::DynamicState::VIEWPORT, Render::Pipeline::DynamicState::SCISSOR};
 
-        pdesc.pushConstantStages = Render::Pipeline::ShaderStage::NONE;
-        pdesc.pushConstantSize   = 0;
+        pdesc.pushConstantStages = Render::Pipeline::ShaderStage::VERTEX;
+        pdesc.pushConstantSize   = sizeof(float) * 16;
 
         pdesc.colorWriteMask      = Render::Pipeline::COLOR_COMPONENT_ALL;
         pdesc.srcColorBlendFactor = Render::Pipeline::BlendFactor::ONE;
@@ -302,10 +316,39 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
     m_frameGraph->add("draw_triangle", GPUFlags::Render, draw,
                       [pipelineMgr, descriptorMgr, pipelineId, draw](RHI* ctx)
                       {
+                          static float angle = 0.0f;
+                          angle += 0.002f;
+
+                          float cy = std::cos(angle);
+                          float sy = std::sin(angle);
+                          float cx = std::cos(angle * 0.6f);
+                          float sx = std::sin(angle * 0.6f);
+
+                          draw->mvp[0] = cy;
+                          draw->mvp[1] = 0.0f;
+                          draw->mvp[2] = -sy;
+                          draw->mvp[3] = 0.0f;
+
+                          draw->mvp[4] = sy * sx;
+                          draw->mvp[5] = cx;
+                          draw->mvp[6] = cy * sx;
+                          draw->mvp[7] = 0.0f;
+
+                          draw->mvp[8]  = sy * cx;
+                          draw->mvp[9]  = -sx;
+                          draw->mvp[10] = cy * cx;
+                          draw->mvp[11] = 0.0f;
+
+                          draw->mvp[12] = 0.0f;
+                          draw->mvp[13] = 0.0f;
+                          draw->mvp[14] = 0.0f;
+                          draw->mvp[15] = 1.0f;
                           ctx->bindPipe(pipelineMgr->getPipelineHandle(pipelineId));
 
                           ctx->setViewport();
                           ctx->setScissor();
+
+                          ctx->pushConstants(pipelineMgr->getPipelineHandle(pipelineId), static_cast<uint32_t>(Render::Pipeline::ShaderStage::VERTEX), 0, sizeof(draw->mvp), draw->mvp);
 
                           ctx->bindDescriptorSet(descriptorMgr->getDescriptor(draw->descHandle), pipelineMgr->getPipelineHandle(pipelineId));
 

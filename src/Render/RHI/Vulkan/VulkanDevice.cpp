@@ -103,6 +103,37 @@ void VulkanDevice::CreateViewPortImage(uint32_t width, uint32_t height)
 
         vmaCreateImage(*m_config->allocator, &imageInfo, &allocCreateInfo, &m_viewPort[i].image, &m_viewPort[i].imageAllocation, nullptr);
 
+        VkImageCreateInfo depthInfo {};
+        depthInfo.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        depthInfo.imageType     = VK_IMAGE_TYPE_2D;
+        depthInfo.extent        = {width, height, 1};
+        depthInfo.mipLevels     = 1;
+        depthInfo.arrayLayers   = 1;
+        depthInfo.format        = VK_FORMAT_D32_SFLOAT;
+        depthInfo.tiling        = VK_IMAGE_TILING_OPTIMAL;
+        depthInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthInfo.usage         = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        depthInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
+        depthInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+
+        VmaAllocationCreateInfo depthAllocInfo {};
+        depthAllocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+
+        vmaCreateImage(*m_config->allocator, &depthInfo, &depthAllocInfo, &m_viewPort[i].depthImage, &m_viewPort[i].depthImageAllocation, nullptr);
+
+        VkImageViewCreateInfo depthViewInfo {};
+        depthViewInfo.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        depthViewInfo.image                           = m_viewPort[i].depthImage;
+        depthViewInfo.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
+        depthViewInfo.format                          = VK_FORMAT_D32_SFLOAT;
+        depthViewInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_DEPTH_BIT;
+        depthViewInfo.subresourceRange.baseMipLevel   = 0;
+        depthViewInfo.subresourceRange.levelCount     = 1;
+        depthViewInfo.subresourceRange.baseArrayLayer = 0;
+        depthViewInfo.subresourceRange.layerCount     = 1;
+
+        vkCreateImageView(device, &depthViewInfo, nullptr, &m_viewPort[i].depthImageView);
+
         VkImageViewCreateInfo createInfo {};
         createInfo.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         createInfo.image                           = m_viewPort[i].image;
@@ -184,12 +215,12 @@ void VulkanDevice::createOffscreenFramebuffer()
 
     for (size_t i = 0; i < m_viewPort.size(); i++)
     {
-        VkImageView attachments[] = {m_viewPort[i].imageView};
+        VkImageView attachments[] = {m_viewPort[i].imageView, m_viewPort[i].depthImageView};
 
         VkFramebufferCreateInfo framebufferInfo {};
         framebufferInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferInfo.renderPass      = m_renderPass;
-        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.attachmentCount = 2;
         framebufferInfo.pAttachments    = attachments;
         framebufferInfo.width           = m_viewPortWidth;
         framebufferInfo.height          = m_viewPortHeight;
@@ -220,19 +251,34 @@ void VulkanDevice::createOffscreenRenderPass()
     colorAttachmentRef.attachment = 0;
     colorAttachmentRef.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-    VkSubpassDescription subpass {};
-    subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments    = &colorAttachmentRef;
+    VkAttachmentDescription depthAttachment {};
+    depthAttachment.format         = VK_FORMAT_D32_SFLOAT;
+    depthAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-    std::array<VkSubpassDependency, 2> dependencies;
+    VkAttachmentReference depthAttachmentRef {};
+    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass {};
+    subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount    = 1;
+    subpass.pColorAttachments       = &colorAttachmentRef;
+    subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+    std::array<VkSubpassDependency, 2> dependencies {};
 
     dependencies[0].srcSubpass      = VK_SUBPASS_EXTERNAL;
     dependencies[0].dstSubpass      = 0;
     dependencies[0].srcStageMask    = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    dependencies[0].dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
     dependencies[0].srcAccessMask   = VK_ACCESS_SHADER_READ_BIT;
-    dependencies[0].dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependencies[0].dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependencies[0].dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
     dependencies[1].srcSubpass      = 0;
@@ -243,10 +289,13 @@ void VulkanDevice::createOffscreenRenderPass()
     dependencies[1].dstAccessMask   = VK_ACCESS_SHADER_READ_BIT;
     dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
+    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
+
     VkRenderPassCreateInfo renderPassInfo {};
+
     renderPassInfo.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments    = &colorAttachment;
+    renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+    renderPassInfo.pAttachments    = attachments.data();
     renderPassInfo.subpassCount    = 1;
     renderPassInfo.pSubpasses      = &subpass;
     renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
@@ -374,6 +423,11 @@ void VulkanDevice::cleanViewPort()
     {
         vkDestroyImageView(device, viewPort.imageView, nullptr);
         vmaDestroyImage(*m_config->allocator, viewPort.image, viewPort.imageAllocation);
+
+        if (viewPort.depthImageView != VK_NULL_HANDLE)
+            vkDestroyImageView(device, viewPort.depthImageView, nullptr);
+        if (viewPort.depthImage != VK_NULL_HANDLE)
+            vmaDestroyImage(*m_config->allocator, viewPort.depthImage, viewPort.depthImageAllocation);
     }
     m_viewPort.clear();
 }
@@ -528,9 +582,12 @@ void VulkanDevice::beginRenderPass()
 
     renderPassInfo.renderArea.extent = {m_viewPortWidth, m_viewPortHeight};
 
-    VkClearValue clearColor        = {{{m_clearColor[0], m_clearColor[1], m_clearColor[2], m_clearColor[3]}}};
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues    = &clearColor;
+    std::array<VkClearValue, 2> clearValues {};
+    clearValues[0].color        = {{m_clearColor[0], m_clearColor[1], m_clearColor[2], m_clearColor[3]}};
+    clearValues[1].depthStencil = {1.0f, 0};
+
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues    = clearValues.data();
 
     vkCmdBeginRenderPass(m_currCmdBuff, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 }

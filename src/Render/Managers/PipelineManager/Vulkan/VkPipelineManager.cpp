@@ -154,7 +154,17 @@ void VkPipelineManager::createGraphicsPipeline(PipelineDesc& desc)
     multisampling.alphaToOneEnable      = CHECK_FLAG(desc.flags, ALPHA_TO_ONE_BIT);
 
     VkPipelineDepthStencilStateCreateInfo depthStencil {};
-    // TODO: Complete.
+    depthStencil.sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.flags                 = 0;  // future expansion and advanced extensions.
+    depthStencil.depthTestEnable       = CHECK_FLAG(desc.flags, DEPTH_TEST_ENABLE);
+    depthStencil.depthWriteEnable      = CHECK_FLAG(desc.flags, DEPTH_WRITE_ENABLE);
+    depthStencil.depthCompareOp        = static_cast<VkCompareOp>(desc.depthCompareOp);
+    depthStencil.depthBoundsTestEnable = CHECK_FLAG(desc.flags, DEPTH_BOUND_TEST_ENABLE);
+    depthStencil.minDepthBounds        = desc.minDepthBounds;
+    depthStencil.maxDepthBounds        = desc.maxDepthBounds;
+    depthStencil.stencilTestEnable     = CHECK_FLAG(desc.flags, STENCIL_TEST_ENABLE);
+    // depthStencil.front
+    // depthStencil.back
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment {};
     colorBlendAttachment.colorWriteMask      = desc.colorWriteMask;
@@ -233,7 +243,7 @@ void VkPipelineManager::createGraphicsPipeline(PipelineDesc& desc)
     pipelineInfo.pViewportState      = &viewportState;
     pipelineInfo.pRasterizationState = &rasterizer;
     pipelineInfo.pMultisampleState   = &multisampling;
-    pipelineInfo.pDepthStencilState  = nullptr;  //&depthStencil;
+    pipelineInfo.pDepthStencilState  = &depthStencil;
     pipelineInfo.pColorBlendState    = &colorBlending;
     pipelineInfo.pDynamicState       = &dynamicState;
 

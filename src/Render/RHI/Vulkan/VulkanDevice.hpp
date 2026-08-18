@@ -86,7 +86,7 @@ class VulkanDevice : public RHI
 
     virtual void callDraw()
     {
-        vkCmdDraw(m_currCmdBuff, 6, 1, 0, 0);
+        vkCmdDraw(m_currCmdBuff, 12, 1, 0, 0);
     }
 
     virtual void bindPipe(void* handle)
@@ -126,6 +126,15 @@ class VulkanDevice : public RHI
         auto* pipeline   = static_cast<SE::Render::Pipeline::Pipeline*>(pipe);
         auto* descriptor = static_cast<SE::Render::Descriptor::Descriptor*>(handle);
         vkCmdBindDescriptorSets(m_currCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipelineLayout, 0, 1, &descriptor->set, 0, nullptr);
+    }
+
+    void pushConstants(void* pipelineHandle, uint32_t stage, uint32_t offset, uint32_t size, const void* data)
+    {
+        auto* pipeline = static_cast<SE::Render::Pipeline::Pipeline*>(pipelineHandle);
+        if (!pipeline)
+            return;
+
+        vkCmdPushConstants(m_currCmdBuff, pipeline->pipelineLayout, (VkShaderStageFlags) stage, offset, size, data);
     }
     /*---------------------*/
 

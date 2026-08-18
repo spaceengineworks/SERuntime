@@ -58,6 +58,15 @@ class PassDrawParameters : public IPassParameters
     uint32_t textureHandle = 0;
     uint32_t descHandle    = 0;
 
+    float mvp[16] = {
+        // clang-format off
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+        // clang-format on
+    };
+
     std::vector<ResourceField> getResources() override
     {
         return {{ResourceType::texture, textureHandle}};

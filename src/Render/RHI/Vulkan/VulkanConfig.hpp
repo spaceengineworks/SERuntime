@@ -36,19 +36,14 @@ struct SharedVulkanConfig
 
     bool isValid() const
     {
-        if (!instance || !physicalDevice || !device || !surface || !graphicsQueue || !presentQueue
-            || !swapChain || !swapChainFormat || !swapChainExtent || !renderPass || !pipelineLayout
+        if (!instance || !physicalDevice || !device || !surface || !graphicsQueue || !presentQueue || !swapChain || !swapChainFormat || !swapChainExtent || !renderPass || !pipelineLayout
             || !graphicsPipeline || !commandPool)
         {
             return false;
         }
-        return *instance != VK_NULL_HANDLE && *physicalDevice != VK_NULL_HANDLE
-               && *device != VK_NULL_HANDLE && *surface != VK_NULL_HANDLE
-               && *graphicsQueue != VK_NULL_HANDLE && *presentQueue != VK_NULL_HANDLE
-               && *swapChain != VK_NULL_HANDLE && *renderPass != VK_NULL_HANDLE
-               && *pipelineLayout != VK_NULL_HANDLE && *graphicsPipeline != VK_NULL_HANDLE
-               && *commandPool != VK_NULL_HANDLE && *swapChainFormat != VK_FORMAT_UNDEFINED
-               && swapChainExtent->width > 0 && swapChainExtent->height > 0;
+        return *instance != VK_NULL_HANDLE && *physicalDevice != VK_NULL_HANDLE && *device != VK_NULL_HANDLE && *surface != VK_NULL_HANDLE && *graphicsQueue != VK_NULL_HANDLE
+               && *presentQueue != VK_NULL_HANDLE && *swapChain != VK_NULL_HANDLE && *renderPass != VK_NULL_HANDLE && *pipelineLayout != VK_NULL_HANDLE && *graphicsPipeline != VK_NULL_HANDLE
+               && *commandPool != VK_NULL_HANDLE && *swapChainFormat != VK_FORMAT_UNDEFINED && swapChainExtent->width > 0 && swapChainExtent->height > 0;
     }
 };
 
@@ -58,6 +53,10 @@ struct ViewPort
     VmaAllocation   imageAllocation = VK_NULL_HANDLE;
     VkImageView     imageView       = VK_NULL_HANDLE;
     VkDescriptorSet descriptorSet   = VK_NULL_HANDLE;
+
+    VkImage       depthImage           = VK_NULL_HANDLE;
+    VmaAllocation depthImageAllocation = VK_NULL_HANDLE;
+    VkImageView   depthImageView       = VK_NULL_HANDLE;
 };
 
 #endif /* VULKAN_CONFIG_HPP */
