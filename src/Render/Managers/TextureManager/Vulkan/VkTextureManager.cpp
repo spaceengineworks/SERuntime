@@ -101,12 +101,12 @@ SeTextureID VkTextureManager::createTexture(TextureDesc desc)
 SeResult VkTextureManager::destroyTexture(SeTextureID textureId)
 {
     if (textureId == SE_INVALID_TEXTURE_ID || textureId >= m_textures.size())
-        return FAILED_TO_DESTROY;
+        return SE_FAILED_TO_DESTROY;
 
     Texture& tex = m_textures[textureId];
 
     if (tex.data.image == VK_NULL_HANDLE)
-        return FAILED_TO_DESTROY;
+        return SE_FAILED_TO_DESTROY;
 
     if (tex.data.imageView != VK_NULL_HANDLE)
         vkDestroyImageView(*(m_config->device), tex.data.imageView, nullptr);

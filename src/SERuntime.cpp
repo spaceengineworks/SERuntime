@@ -2,11 +2,16 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "ThirdParty/stb_image.h"
 //
+#include <iostream>
 
+#include "ThirdParty/stb_loader.hpp"
+
+//
 #include <iostream>
 #include <stdexcept>
 #include <tracy/Tracy.hpp>
 
+#include "Render/Managers/BufferManager/Vulkan/VkBufferManager.hpp"
 #include "Render/Managers/DescriptorManager/Vulkan/VkDescriptorManager.hpp"
 #include "Render/Managers/PipelineManager/Vulkan/VkPipelineManager.hpp"
 #include "Render/Managers/ShaderManager/Vulkan/VkShaderManager.hpp"
@@ -35,6 +40,7 @@ struct BackendManagers
     std::unique_ptr<Render::Texture::ITextureManager>       textureManager;
     std::unique_ptr<Render::Pipeline::IPipelineManager>     pipelineManager;
     std::unique_ptr<Render::Descriptor::IDescriptorManager> descriptorManager;
+    std::unique_ptr<Render::Buffer::IBufferManager>         bufferManager;
 };
 
 BackendManagers createBackendManagers(SeRender render, SharedVulkanConfig* config)
@@ -51,11 +57,13 @@ BackendManagers createBackendManagers(SeRender render, SharedVulkanConfig* confi
             managers.textureManager    = std::make_unique<Render::Texture::VkTextureManager>();
             managers.pipelineManager   = std::make_unique<Render::Pipeline::VkPipelineManager>();
             managers.descriptorManager = std::make_unique<Render::Descriptor::VkDescriptorManager>();
+            managers.bufferManager     = std::make_unique<Render::Buffer::VkBufferManager>();
 
             static_cast<Render::Shader::VkShaderManager*>(managers.shaderManager.get())->setConfig(config);
             static_cast<Render::Texture::VkTextureManager*>(managers.textureManager.get())->setConfig(config);
             static_cast<Render::Pipeline::VkPipelineManager*>(managers.pipelineManager.get())->setConfig(config);
             static_cast<Render::Descriptor::VkDescriptorManager*>(managers.descriptorManager.get())->setConfig(config);
+            static_cast<Render::Buffer::VkBufferManager*>(managers.bufferManager.get())->setConfig(config);
 
             static_cast<Render::Pipeline::VkPipelineManager*>(managers.pipelineManager.get())->setShaderManager(managers.shaderManager.get());
             static_cast<Render::Pipeline::VkPipelineManager*>(managers.pipelineManager.get())->setDescriptorManager(managers.descriptorManager.get());
@@ -82,6 +90,7 @@ void SERuntime::initEngine()
     m_textureManager    = std::move(backend.textureManager);
     m_pipelineManager   = std::move(backend.pipelineManager);
     m_descriptorManager = std::move(backend.descriptorManager);
+    m_bufferManager     = std::move(backend.bufferManager);
 
     if (m_API_render == Vulkan)
     {
@@ -93,6 +102,9 @@ void SERuntime::initEngine()
     m_frameGraph = std::make_unique<FrameGraph>(m_context.get());
     if (!m_frameGraph)
         throw std::runtime_error("frame graph not init.");
+
+    m_meshFabric = std::make_unique<MeshCollectionFabric>();
+    m_meshFabric->setBufferManager(m_bufferManager.get());
 }
 
 SERuntime::~SERuntime() = default;
@@ -222,52 +234,59 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
             throw std::runtime_error("failed to create texture descriptor!");
 
         const char* vertSource = R"(
-    #version 450
+        #version 450
 
-    vec3 positions[12] = vec3[](
-        vec3(-0.4, -0.4, -0.3), vec3(-0.4,  0.4, -0.3), vec3( 0.4,  0.4, -0.3),
-        vec3(-0.4, -0.4, -0.3), vec3( 0.4,  0.4, -0.3), vec3( 0.4, -0.4, -0.3),
+        layout(location = 0) in vec3 inPosition;
 
-        vec3(-0.4, -0.4,  0.3), vec3(-0.4,  0.4,  0.3), vec3( 0.4,  0.4,  0.3),
-        vec3(-0.4, -0.4,  0.3), vec3( 0.4,  0.4,  0.3), vec3( 0.4, -0.4,  0.3)
-    );
+        layout(location = 0) out vec2 fragUV;
 
-    vec2 uvs[12] = vec2[](
-        vec2(0.0, 0.0), vec2(0.0, 1.0), vec2(1.0, 1.0),
-        vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(1.0, 0.0),
+        layout(push_constant) uniform PushConstants
+        {
+            mat4 mvp;
+        } push;
 
-        vec2(0.0, 0.0), vec2(0.0, 1.0), vec2(1.0, 1.0),
-        vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(1.0, 0.0)
-    );
+        void main()
+        {
+            gl_Position = push.mvp * vec4(inPosition, 1.0);
 
-    layout(location = 0) out vec2 fragUV;
-    
-    layout(push_constant) uniform PushConstants {
-        mat4 mvp;
-    } push;
+            gl_Position.z = gl_Position.z * 0.4 + 0.5;
 
-    void main() {
-        vec4 pos = push.mvp * vec4(positions[gl_VertexIndex], 1.0);
-        
-        pos.z = pos.z * 0.4 + 0.5;
+            const vec2 uvs[12] = vec2[](
+                vec2(0.0, 0.0),
+                vec2(0.0, 1.0),
+                vec2(1.0, 1.0),
 
-        gl_Position = pos;
-        fragUV = uvs[gl_VertexIndex];
-    }
-)";
+                vec2(0.0, 0.0),
+                vec2(1.0, 1.0),
+                vec2(1.0, 0.0),
+
+                vec2(0.0, 0.0),
+                vec2(0.0, 1.0),
+                vec2(1.0, 1.0),
+
+                vec2(0.0, 0.0),
+                vec2(1.0, 1.0),
+                vec2(1.0, 0.0)
+            );
+
+            fragUV = uvs[gl_VertexIndex % 12];
+        }
+        )";
 
         const char* fragSource = R"(
-    #version 450
+        #version 450
 
-    layout(location = 0) out vec4 outColor;
-    layout(location = 0) in vec2 fragUV;
+        layout(location = 0) in vec2 fragUV;
 
-    layout(set = 0, binding = 0) uniform sampler2D uTexture;
+        layout(location = 0) out vec4 outColor;
 
-    void main() {
-        outColor = texture(uTexture, fragUV);
-    }
-)";
+        layout(set = 0, binding = 0) uniform sampler2D uTexture;
+
+        void main()
+        {
+            outColor = texture(uTexture, fragUV);
+        }
+        )";
 
         s_vertId = m_shaderManager->createShader({vertSource, "temp_vert.spv", Render::Shader::vertex_shader});
         s_fragId = m_shaderManager->createShader({fragSource, "temp_frag.spv", Render::Shader::fragment_shader});
@@ -278,6 +297,9 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
         pdesc.shaders    = {s_vertId, s_fragId};
         pdesc.stageCount = 2;
         pdesc.flags      = Render::Pipeline::DEPTH_TEST_ENABLE | Render::Pipeline::DEPTH_WRITE_ENABLE;
+
+        pdesc.vertexLayout.stride = sizeof(float) * 3;
+        pdesc.vertexLayout.attributes.push_back({.location = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = 0});
 
         pdesc.topology    = Render::Pipeline::PrimitiveTopology::TRIANGLE_LIST;
         pdesc.polygonMode = Render::Pipeline::PolygonMode::FILL;
@@ -311,39 +333,83 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
 
     auto*    pipelineMgr   = m_pipelineManager.get();
     auto*    descriptorMgr = m_descriptorManager.get();
+    auto*    meshMgr       = m_meshFabric.get();
     uint32_t pipelineId    = s_pipelineId;
 
+    /* all code here simulates like engine acuatly load mesh to scene two main buffer one indices and vertex for MDI draws */
+
+    // const float vertices[] = {-0.4f, -0.4f, -0.3f, -0.4f, 0.4f, -0.3f, 0.4f, 0.4f,  -0.3f,
+
+    //                           -0.4f, -0.4f, -0.3f, 0.4f,  0.4f, -0.3f, 0.4f, -0.4f, -0.3f,
+
+    //                           -0.4f, -0.4f, 0.3f,  -0.4f, 0.4f, 0.3f,  0.4f, 0.4f,  0.3f,
+
+    //                           -0.4f, -0.4f, 0.3f,  0.4f,  0.4f, 0.3f,  0.4f, -0.4f, 0.3f};
+
+    // const uint32_t indices[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+
+    // std::span<const uint8_t> vertexData {reinterpret_cast<const uint8_t*>(vertices), sizeof(vertices)};
+
+    // std::span<const uint8_t> indexData {reinterpret_cast<const uint8_t*>(indices), sizeof(indices)};
+
+    ObjMesh mesh = loadObj("C:/Users/ilanv/Downloads/stanford-bunny.obj");
+
+    std::span<const uint8_t> vertexData {reinterpret_cast<const uint8_t*>(mesh.vertices.data()), mesh.vertices.size() * sizeof(float)};
+
+    std::span<const uint8_t> indexData {reinterpret_cast<const uint8_t*>(mesh.indices.data()), mesh.indices.size() * sizeof(uint32_t)};
+
+    SeMeshCollectionID MeshCollectionID = m_meshFabric->createCollection(1000, 1000);
+
+    MeshCollection* collection = m_meshFabric->getCollection(MeshCollectionID);
+
+    uint32_t idx = collection->addMesh(vertexData, indexData, static_cast<uint32_t>(mesh.indices.size()), sizeof(float) * 3, 0);
+
+    // uint32_t idx = collection->addMesh(vertexData, indexData, static_cast<uint32_t>(std::size(indices)), sizeof(float) * 3, 0);
+
+    std::cout << idx << std::endl;
+
+    draw->collectionHandle = MeshCollectionID;
+
+    /* ------------------------- */
+
     m_frameGraph->add("draw_triangle", GPUFlags::Render, draw,
-                      [pipelineMgr, descriptorMgr, pipelineId, draw](RHI* ctx)
+                      [meshMgr, pipelineMgr, descriptorMgr, pipelineId, draw](RHI* ctx)
                       {
                           static float angle = 0.0f;
                           angle += 0.002f;
 
                           float cy = std::cos(angle);
                           float sy = std::sin(angle);
-                          float cx = std::cos(angle * 0.6f);
-                          float sx = std::sin(angle * 0.6f);
 
-                          draw->mvp[0] = cy;
+                          float centerY = (0.032987f + 0.187321f) * 0.5f;
+
+                          float scale = 7.0f;
+
+                          draw->mvp[0] = cy * scale;
                           draw->mvp[1] = 0.0f;
-                          draw->mvp[2] = -sy;
+                          draw->mvp[2] = -sy * scale;
                           draw->mvp[3] = 0.0f;
 
-                          draw->mvp[4] = sy * sx;
-                          draw->mvp[5] = cx;
-                          draw->mvp[6] = cy * sx;
+                          draw->mvp[4] = 0.0f;
+                          draw->mvp[5] = -scale;
+                          draw->mvp[6] = 0.0f;
                           draw->mvp[7] = 0.0f;
 
-                          draw->mvp[8]  = sy * cx;
-                          draw->mvp[9]  = -sx;
-                          draw->mvp[10] = cy * cx;
+                          draw->mvp[8]  = sy * scale;
+                          draw->mvp[9]  = 0.0f;
+                          draw->mvp[10] = cy * scale;
                           draw->mvp[11] = 0.0f;
 
                           draw->mvp[12] = 0.0f;
-                          draw->mvp[13] = 0.0f;
+                          draw->mvp[13] = centerY * scale;
                           draw->mvp[14] = 0.0f;
                           draw->mvp[15] = 1.0f;
+
+                          meshMgr->getCollection(draw->collectionHandle)->buildDrawCommands();
+
                           ctx->bindPipe(pipelineMgr->getPipelineHandle(pipelineId));
+                          ctx->bindVertexBuffers(meshMgr->getCollection(draw->collectionHandle));
+                          ctx->bindIndexBuffer(meshMgr->getCollection(draw->collectionHandle));
 
                           ctx->setViewport();
                           ctx->setScissor();
@@ -352,7 +418,7 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
 
                           ctx->bindDescriptorSet(descriptorMgr->getDescriptor(draw->descHandle), pipelineMgr->getPipelineHandle(pipelineId));
 
-                          ctx->callDraw();
+                          ctx->DrawIndexedIndirect(meshMgr->getCollection(draw->collectionHandle));
                           ctx->endRenderPass();
                       });
 

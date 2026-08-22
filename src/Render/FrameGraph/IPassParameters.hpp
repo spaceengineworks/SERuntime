@@ -55,8 +55,9 @@ class PassDrawParameters : public IPassParameters
     PassDrawParameters()           = default;
     ~PassDrawParameters() override = default;
 
-    uint32_t textureHandle = 0;
-    uint32_t descHandle    = 0;
+    uint32_t textureHandle    = 0;
+    uint32_t descHandle       = 0;
+    uint32_t collectionHandle = 0;
 
     float mvp[16] = {
         // clang-format off

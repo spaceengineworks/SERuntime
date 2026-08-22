@@ -5,10 +5,17 @@
 #include <memory>
 
 #include "Render/FrameGraph/FrameGraph.hpp"
+#include "Render/Managers/BufferManager/IBufferManager.hpp"
 #include "Render/Managers/DescriptorManager/IDescriptorManager.hpp"
 #include "Render/Managers/PipelineManager/IPipelineManager.hpp"
 #include "Render/Managers/ShaderManager/IShaderManager.hpp"
 #include "Render/Managers/TextureManager/ITextureManager.hpp"
+//
+#include "Render/Managers/MeshCollection.hpp"
+#include "Render/Managers/MeshCollectionFabric.hpp"
+
+//
+
 #include "Render/RHI/RHI.hpp"
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -85,15 +92,17 @@ class SERUNTIME_API SERuntime
     }
 
    private:
-    SeRender                    m_API_render;
-    std::unique_ptr<RHI>        m_context    = nullptr;
-    std::unique_ptr<FrameGraph> m_frameGraph = nullptr;
-    FrameAllocator              m_frameAllocator;
+    SeRender                              m_API_render;
+    std::unique_ptr<RHI>                  m_context    = nullptr;
+    std::unique_ptr<FrameGraph>           m_frameGraph = nullptr;
+    std::unique_ptr<MeshCollectionFabric> m_meshFabric = nullptr;
+    FrameAllocator                        m_frameAllocator;
 
     std::unique_ptr<Render::Shader::IShaderManager>         m_shaderManager;
     std::unique_ptr<Render::Texture::ITextureManager>       m_textureManager;
     std::unique_ptr<Render::Pipeline::IPipelineManager>     m_pipelineManager;
     std::unique_ptr<Render::Descriptor::IDescriptorManager> m_descriptorManager;
+    std::unique_ptr<Render::Buffer::IBufferManager>         m_bufferManager;
 };
 }  // namespace SE
 

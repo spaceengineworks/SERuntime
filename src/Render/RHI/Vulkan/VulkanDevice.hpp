@@ -15,7 +15,10 @@
 #include "vk_mem_alloc.h"
 
 //
+
+#include "../../../Render/Managers/BufferManager/Vulkan/VkBufferManager.hpp"
 #include "../../../Render/Managers/DescriptorManager/Vulkan/VkDescriptorManager.hpp"
+#include "../../../Render/Managers/MeshCollection.hpp"
 #include "../../../Render/Managers/PipelineManager/Vulkan/VkPipelineManager.hpp"
 
 namespace SE
@@ -84,6 +87,14 @@ class VulkanDevice : public RHI
         vkCmdEndRenderPass(m_currCmdBuff);
     }
 
+    virtual void DrawIndexedIndirect(void* collection)
+    {
+        MeshCollection* coll   = (MeshCollection*) collection;
+        Buffer*         buffer = static_cast<SE::Render::Buffer::Buffer*>(coll->getIndirectBufferhandle());
+
+        vkCmdDrawIndexedIndirect(m_currCmdBuff, buffer->buffer, 0, coll->getAvtiveMeshes(), sizeof(VkDrawIndexedIndirectCommand));
+    }
+
     virtual void callDraw()
     {
         vkCmdDraw(m_currCmdBuff, 12, 1, 0, 0);
@@ -96,6 +107,26 @@ class VulkanDevice : public RHI
             return;
 
         vkCmdBindPipeline(m_currCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
+    }
+
+    virtual void bindVertexBuffers(void* handle)
+    {
+        MeshCollection* coll = static_cast<MeshCollection*>(handle);
+
+        Buffer* buffer = static_cast<Buffer*>(coll->getVertexBufferHandle());
+
+        VkDeviceSize offset = 0;
+
+        vkCmdBindVertexBuffers(m_currCmdBuff, 0, 1, &buffer->buffer, &offset);
+    }
+
+    virtual void bindIndexBuffer(void* handle)
+    {
+        MeshCollection* coll = static_cast<MeshCollection*>(handle);
+
+        Buffer* buffer = static_cast<Buffer*>(coll->getIndexBufferHandle());
+
+        vkCmdBindIndexBuffer(m_currCmdBuff, buffer->buffer, 0, VK_INDEX_TYPE_UINT32);
     }
 
     virtual void setViewport()

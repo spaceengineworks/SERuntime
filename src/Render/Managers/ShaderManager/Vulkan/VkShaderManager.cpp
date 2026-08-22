@@ -50,12 +50,12 @@ SeShaderID VkShaderManager::createShader(ShaderDesc desc)
 SeResult VkShaderManager::destroyShader(SeShaderID shaderId)
 {
     if (shaderId == SE_INVALID_SHADER_ID || shaderId >= m_shaders.size())
-        return FAILED_TO_DESTROY;
+        return SE_FAILED_TO_DESTROY;
 
     Shader& shader = m_shaders[shaderId];
 
     if (shader.module == VK_NULL_HANDLE)
-        return FAILED_TO_DESTROY;
+        return SE_FAILED_TO_DESTROY;
 
     vkDestroyShaderModule(*m_config->device, shader.module, nullptr);
 

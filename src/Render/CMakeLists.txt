@@ -2,10 +2,13 @@ add_library(Render
     RHI/Vulkan/VulkanDevice.cpp
     FrameGraph/FrameAllocator.cpp
     FrameGraph/FrameGraph.cpp
+    Managers/MeshCollection.cpp
+    Managers/MeshCollectionFabric.cpp
     Managers/TextureManager/Vulkan/VkTextureManager.cpp
     Managers/ShaderManager/Vulkan/VkShaderManager.cpp
     Managers/PipelineManager/Vulkan/VkPipelineManager.cpp
     Managers/DescriptorManager/Vulkan/VkDescriptorManager.cpp
+    Managers/BufferManager/Vulkan/VkBufferManager.cpp
 )
 
 target_include_directories(Render PUBLIC

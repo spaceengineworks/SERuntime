@@ -35,12 +35,12 @@ SePipelineID VkPipelineManager::createPipeline(PipelineDesc desc)
 SeResult VkPipelineManager::destroyPipeline(SePipelineID pipelineId)
 {
     if (pipelineId == SE_INVALID_PIPELINE_ID || pipelineId >= m_pipelines.size())
-        return FAILED_TO_DESTROY;
+        return SE_FAILED_TO_DESTROY;
 
     Pipeline pipeline = m_pipelines[pipelineId];
 
     if (pipeline.pipeline == VK_NULL_HANDLE || pipeline.pipelineLayout == VK_NULL_HANDLE)
-        return FAILED_TO_DESTROY;
+        return SE_FAILED_TO_DESTROY;
 
     vkDestroyPipeline(*m_config->device, pipeline.pipeline, nullptr);
     vkDestroyPipelineLayout(*m_config->device, pipeline.pipelineLayout, nullptr);

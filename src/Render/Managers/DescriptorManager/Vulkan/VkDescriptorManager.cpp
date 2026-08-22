@@ -94,12 +94,12 @@ SeDescriptorID VkDescriptorManager::createDescriptor(DescriptorDesc desc)
 SeResult VkDescriptorManager::destroyDescriptor(SeDescriptorID descriptorId)
 {
     if (descriptorId == SE_INVALID_DESCRIPTOR_ID || descriptorId >= m_descriptors.size())
-        return FAILED_TO_DESTROY;
+        return SE_FAILED_TO_DESTROY;
 
     Descriptor& descriptor = m_descriptors[descriptorId];
 
     if (descriptor.set == VK_NULL_HANDLE)
-        return FAILED_TO_DESTROY;
+        return SE_FAILED_TO_DESTROY;
 
     vkFreeDescriptorSets(*m_config->device, descriptor.pool, 1, &descriptor.set);
 

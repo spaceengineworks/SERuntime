@@ -87,7 +87,10 @@ class RHI
 
     /* frame graph methods */
     virtual void callDraw()                                                                                            = 0;
+    virtual void DrawIndexedIndirect(void* collection)                                                                 = 0;
     virtual void bindPipe(void* handle)                                                                                = 0;
+    virtual void bindVertexBuffers(void* handle)                                                                       = 0;
+    virtual void bindIndexBuffer(void* handle)                                                                         = 0;
     virtual void setViewport()                                                                                         = 0;
     virtual void setScissor()                                                                                          = 0;
     virtual void bindDescriptorSet(void* handle, void* pipe)                                                           = 0;
