@@ -36,16 +36,18 @@
 
 #endif
 
-// 0. add normal namespace inside other namespace
-// 1. Add a second pass (geometry pass) using shaderc pipeline + vertex/index buffer to test the graph
-// 2. ECS: add World.hpp/.cpp with EnTT registry, call update from runtime loop
-// 3. Physics: add Jolt world init + step call from runtime loop
-// 4. Clean up dead/commented code in VulkanDevice destructor, decide cleanUp() vs dtor
-// - Add depth attachment to SE::VulkanDevice::createOffscreenRenderPass() (currently missing)
-// - Create depth image + view for offscreen framebuffer
-// - (later)Material / Shader
-// abstraction:ShaderHandle, Material, mesh holds Material not raw pipeline -
-// Decide:keep VkShaderManager(hot - reload / variants)or drop it, keep inline readFile  + vkCreateShaderModule
+// TODO:
+//  0. fix all namespaces.
+//  1. add to collection class SSBO buffer we need some how manage offset of huge buffer for ???
+//  2. build() FrameGraph.
+//  3. add full G buffer pass.
+//  4. clean all includes \ and ThirdParty files.
+//  5. clean up dead/commented code in VulkanDevice destructor, decide cleanUp() vs dtor
+
+// Important: some how make more stable creation engine and passing viewport to Editor to much boilercode.
+
+// 0. ECS: add World.hpp/.cpp with EnTT registry, call update from runtime loop
+// 1. Physics: add Jolt world init + step call from runtime loop
 
 namespace SE
 {
