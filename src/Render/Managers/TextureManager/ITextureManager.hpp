@@ -5,7 +5,7 @@
 
 #include "../../../space_core.hpp"
 
-namespace SE::Render::Texture
+namespace SE
 {
 
 using SeTextureID     = uint32_t;
@@ -44,6 +44,6 @@ class ITextureManager
    private:
 };
 
-}  // namespace SE::Render::Texture
+}  // namespace SE
 
 #endif /* ITEXTURE_MANAGER_H */

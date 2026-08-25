@@ -10,7 +10,7 @@
 #include "../../../RHI/Vulkan/VulkanConfig.hpp"
 #include "../IShaderManager.hpp"
 
-namespace SE::Render::Shader
+namespace SE
 {
 
 struct Shader
@@ -60,6 +60,6 @@ class VkShaderManager : public IShaderManager
     }
 };
 
-}  // namespace SE::Render::Shader
+}  // namespace SE
 
 #endif /* VK_SHADER_MANAGER_H */

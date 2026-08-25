@@ -8,7 +8,7 @@
 #include "../../../RHI/Vulkan/VulkanConfig.hpp"
 #include "../IPipelineManager.hpp"
 
-namespace SE::Render::Pipeline
+namespace SE
 {
 
 struct Pipeline
@@ -33,13 +33,13 @@ class VkPipelineManager : public IPipelineManager
             m_config = config;
     }
 
-    void setShaderManager(SE::Render::Shader::IShaderManager* shaderManager)
+    void setShaderManager(IShaderManager* shaderManager)
     {
         if (shaderManager)
             m_shaderManager = shaderManager;
     }
 
-    void setDescriptorManager(SE::Render::Descriptor::IDescriptorManager* mgr)
+    void setDescriptorManager(IDescriptorManager* mgr)
     {
         if (mgr)
             m_descriptorManager = mgr;
@@ -52,10 +52,10 @@ class VkPipelineManager : public IPipelineManager
     }
 
    private:
-    SharedVulkanConfig*                         m_config            = nullptr;
-    VkRenderPass                                m_renderPass        = VK_NULL_HANDLE;
-    SE::Render::Shader::IShaderManager*         m_shaderManager     = nullptr;
-    SE::Render::Descriptor::IDescriptorManager* m_descriptorManager = nullptr;
+    SharedVulkanConfig* m_config            = nullptr;
+    VkRenderPass        m_renderPass        = VK_NULL_HANDLE;
+    IShaderManager*     m_shaderManager     = nullptr;
+    IDescriptorManager* m_descriptorManager = nullptr;
 
     std::vector<Pipeline> m_pipelines;
     SePipelineID          m_nextId = 0;
@@ -140,13 +140,13 @@ class VkPipelineManager : public IPipelineManager
         return vkFlags;
     }
 
-    static VkShaderStageFlagBits toVkShaderStage(SE::Render::Shader::SeShaderType type)
+    static VkShaderStageFlagBits toVkShaderStage(SeShaderType type)
     {
         switch (type)
         {
-            case SE::Render::Shader::vertex_shader:
+            case vertex_shader:
                 return VK_SHADER_STAGE_VERTEX_BIT;
-            case SE::Render::Shader::fragment_shader:
+            case fragment_shader:
                 return VK_SHADER_STAGE_FRAGMENT_BIT;
             default:
                 throw std::runtime_error("unknown shader type");
@@ -154,6 +154,6 @@ class VkPipelineManager : public IPipelineManager
     }
 };
 
-}  // namespace SE::Render::Pipeline
+}  // namespace SE
 
 #endif /* VK_PIPELINE_MANAGER_HPP */

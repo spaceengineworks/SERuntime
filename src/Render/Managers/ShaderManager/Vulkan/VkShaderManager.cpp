@@ -1,6 +1,6 @@
 #include "VkShaderManager.hpp"
 
-namespace SE::Render::Shader
+namespace SE
 {
 
 VkShaderManager::VkShaderManager()
@@ -94,4 +94,4 @@ std::vector<uint32_t> VkShaderManager::compileShader(const char* source, const c
     return spirv_code;
 }
 
-}  // namespace SE::Render::Shader
+}  // namespace SE

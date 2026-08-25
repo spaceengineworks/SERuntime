@@ -37,7 +37,7 @@
 #endif
 
 // TODO:
-//  0. fix all namespaces.
+//
 //  1. add to collection class SSBO buffer we need some how manage offset of huge buffer for ???
 //  2. build() FrameGraph.
 //  3. add full G buffer pass.
@@ -100,11 +100,11 @@ class SERUNTIME_API SERuntime
     std::unique_ptr<MeshCollectionFabric> m_meshFabric = nullptr;
     FrameAllocator                        m_frameAllocator;
 
-    std::unique_ptr<Render::Shader::IShaderManager>         m_shaderManager;
-    std::unique_ptr<Render::Texture::ITextureManager>       m_textureManager;
-    std::unique_ptr<Render::Pipeline::IPipelineManager>     m_pipelineManager;
-    std::unique_ptr<Render::Descriptor::IDescriptorManager> m_descriptorManager;
-    std::unique_ptr<Render::Buffer::IBufferManager>         m_bufferManager;
+    std::unique_ptr<IShaderManager>     m_shaderManager;
+    std::unique_ptr<ITextureManager>    m_textureManager;
+    std::unique_ptr<IPipelineManager>   m_pipelineManager;
+    std::unique_ptr<IDescriptorManager> m_descriptorManager;
+    std::unique_ptr<IBufferManager>     m_bufferManager;
 };
 }  // namespace SE
 

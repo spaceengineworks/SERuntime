@@ -90,7 +90,7 @@ class VulkanDevice : public RHI
     virtual void DrawIndexedIndirect(void* collection)
     {
         MeshCollection* coll   = (MeshCollection*) collection;
-        Buffer*         buffer = static_cast<SE::Render::Buffer::Buffer*>(coll->getIndirectBufferhandle());
+        Buffer*         buffer = static_cast<Buffer*>(coll->getIndirectBufferhandle());
 
         vkCmdDrawIndexedIndirect(m_currCmdBuff, buffer->buffer, 0, coll->getAvtiveMeshes(), sizeof(VkDrawIndexedIndirectCommand));
     }
@@ -102,7 +102,7 @@ class VulkanDevice : public RHI
 
     virtual void bindPipe(void* handle)
     {
-        auto* pipeline = static_cast<SE::Render::Pipeline::Pipeline*>(handle);
+        auto* pipeline = static_cast<Pipeline*>(handle);
         if (!pipeline)
             return;
 
@@ -154,14 +154,14 @@ class VulkanDevice : public RHI
         if (!handle)
             return;
 
-        auto* pipeline   = static_cast<SE::Render::Pipeline::Pipeline*>(pipe);
-        auto* descriptor = static_cast<SE::Render::Descriptor::Descriptor*>(handle);
+        auto* pipeline   = static_cast<Pipeline*>(pipe);
+        auto* descriptor = static_cast<Descriptor*>(handle);
         vkCmdBindDescriptorSets(m_currCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipelineLayout, 0, 1, &descriptor->set, 0, nullptr);
     }
 
     void pushConstants(void* pipelineHandle, uint32_t stage, uint32_t offset, uint32_t size, const void* data)
     {
-        auto* pipeline = static_cast<SE::Render::Pipeline::Pipeline*>(pipelineHandle);
+        auto* pipeline = static_cast<Pipeline*>(pipelineHandle);
         if (!pipeline)
             return;
 

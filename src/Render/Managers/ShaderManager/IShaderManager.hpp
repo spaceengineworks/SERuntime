@@ -5,7 +5,7 @@
 
 #include "../../../space_core.hpp"
 
-namespace SE::Render::Shader
+namespace SE
 {
 
 using SeShaderID     = uint32_t;
@@ -38,6 +38,6 @@ class IShaderManager
    private:
 };
 
-}  // namespace SE::Render::Shader
+}  // namespace SE
 
 #endif /* ISHADER_MANAGER_H */

@@ -7,7 +7,7 @@
 
 #include "../../../space_core.hpp"
 
-namespace SE::Render::Buffer
+namespace SE
 {
 
 using SeBufferID     = uint32_t;
@@ -67,6 +67,6 @@ class IBufferManager
    private:
 };
 
-}  // namespace SE::Render::Buffer
+}  // namespace SE
 
 #endif /* IBUFFER_MANAGER_HPP */

@@ -36,11 +36,11 @@ std::unique_ptr<RHI> createRenderContext(SeRender render)
 
 struct BackendManagers
 {
-    std::unique_ptr<Render::Shader::IShaderManager>         shaderManager;
-    std::unique_ptr<Render::Texture::ITextureManager>       textureManager;
-    std::unique_ptr<Render::Pipeline::IPipelineManager>     pipelineManager;
-    std::unique_ptr<Render::Descriptor::IDescriptorManager> descriptorManager;
-    std::unique_ptr<Render::Buffer::IBufferManager>         bufferManager;
+    std::unique_ptr<IShaderManager>     shaderManager;
+    std::unique_ptr<ITextureManager>    textureManager;
+    std::unique_ptr<IPipelineManager>   pipelineManager;
+    std::unique_ptr<IDescriptorManager> descriptorManager;
+    std::unique_ptr<IBufferManager>     bufferManager;
 };
 
 BackendManagers createBackendManagers(SeRender render, SharedVulkanConfig* config)
@@ -53,20 +53,20 @@ BackendManagers createBackendManagers(SeRender render, SharedVulkanConfig* confi
         case SeRender::Vulkan:
         {
             BackendManagers managers {};
-            managers.shaderManager     = std::make_unique<Render::Shader::VkShaderManager>();
-            managers.textureManager    = std::make_unique<Render::Texture::VkTextureManager>();
-            managers.pipelineManager   = std::make_unique<Render::Pipeline::VkPipelineManager>();
-            managers.descriptorManager = std::make_unique<Render::Descriptor::VkDescriptorManager>();
-            managers.bufferManager     = std::make_unique<Render::Buffer::VkBufferManager>();
+            managers.shaderManager     = std::make_unique<VkShaderManager>();
+            managers.textureManager    = std::make_unique<VkTextureManager>();
+            managers.pipelineManager   = std::make_unique<VkPipelineManager>();
+            managers.descriptorManager = std::make_unique<VkDescriptorManager>();
+            managers.bufferManager     = std::make_unique<VkBufferManager>();
 
-            static_cast<Render::Shader::VkShaderManager*>(managers.shaderManager.get())->setConfig(config);
-            static_cast<Render::Texture::VkTextureManager*>(managers.textureManager.get())->setConfig(config);
-            static_cast<Render::Pipeline::VkPipelineManager*>(managers.pipelineManager.get())->setConfig(config);
-            static_cast<Render::Descriptor::VkDescriptorManager*>(managers.descriptorManager.get())->setConfig(config);
-            static_cast<Render::Buffer::VkBufferManager*>(managers.bufferManager.get())->setConfig(config);
+            static_cast<VkShaderManager*>(managers.shaderManager.get())->setConfig(config);
+            static_cast<VkTextureManager*>(managers.textureManager.get())->setConfig(config);
+            static_cast<VkPipelineManager*>(managers.pipelineManager.get())->setConfig(config);
+            static_cast<VkDescriptorManager*>(managers.descriptorManager.get())->setConfig(config);
+            static_cast<VkBufferManager*>(managers.bufferManager.get())->setConfig(config);
 
-            static_cast<Render::Pipeline::VkPipelineManager*>(managers.pipelineManager.get())->setShaderManager(managers.shaderManager.get());
-            static_cast<Render::Pipeline::VkPipelineManager*>(managers.pipelineManager.get())->setDescriptorManager(managers.descriptorManager.get());
+            static_cast<VkPipelineManager*>(managers.pipelineManager.get())->setShaderManager(managers.shaderManager.get());
+            static_cast<VkPipelineManager*>(managers.pipelineManager.get())->setDescriptorManager(managers.descriptorManager.get());
 
             return managers;
         }
@@ -174,15 +174,15 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
                           ctx->beginRenderPass();
                       });
 
-    static Render::Shader::SeShaderID         s_vertId     = SE_INVALID_SHADER_ID;
-    static Render::Shader::SeShaderID         s_fragId     = SE_INVALID_SHADER_ID;
-    static Render::Pipeline::SePipelineID     s_pipelineId = SE_INVALID_PIPELINE_ID;
-    static Render::Texture::SeTextureID       s_textureId  = SE_INVALID_TEXTURE_ID;
-    static Render::Descriptor::SeDescriptorID s_descId     = SE_INVALID_DESCRIPTOR_ID;
+    static SeShaderID     s_vertId     = SE_INVALID_SHADER_ID;
+    static SeShaderID     s_fragId     = SE_INVALID_SHADER_ID;
+    static SePipelineID   s_pipelineId = SE_INVALID_PIPELINE_ID;
+    static SeTextureID    s_textureId  = SE_INVALID_TEXTURE_ID;
+    static SeDescriptorID s_descId     = SE_INVALID_DESCRIPTOR_ID;
 
     if (s_textureId == SE_INVALID_TEXTURE_ID)
     {
-        SE::Render::Texture::TextureDesc defaultTexture {};
+        TextureDesc defaultTexture {};
 
         int            _width, _height, _channels;
         unsigned char* data = stbi_load("C:/Users/ilanv/Downloads/good.jpg", &_width, &_height, &_channels, 4);
@@ -215,16 +215,16 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
         if (s_textureId == SE_INVALID_TEXTURE_ID)
             throw std::runtime_error("failed to create default texture!");
 
-        Render::Descriptor::DescriptorDesc bindDesc {};
+        DescriptorDesc bindDesc {};
 
-        Render::Descriptor::DescriptorBindingDesc bind {};
-        auto*                                     texData = static_cast<Render::Texture::TextureData*>(m_textureManager->getTextureHandle(s_textureId));
+        DescriptorBindingDesc bind {};
+        auto*                 texData = static_cast<TextureData*>(m_textureManager->getTextureHandle(s_textureId));
 
         bind.imageView  = texData->imageView;
         bind.sampler    = texData->sampler;
         bind.binding    = 0;
-        bind.type       = Render::Descriptor::DescriptorType::COMBINED_IMAGE_SAMPLER;
-        bind.stageFlags = static_cast<uint32_t>(Render::Pipeline::ShaderStage::FRAGMENT);
+        bind.type       = DescriptorType::COMBINED_IMAGE_SAMPLER;
+        bind.stageFlags = static_cast<uint32_t>(ShaderStage::FRAGMENT);
 
         bindDesc.bindings.push_back(bind);
 
@@ -288,38 +288,38 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
         }
         )";
 
-        s_vertId = m_shaderManager->createShader({vertSource, "temp_vert.spv", Render::Shader::vertex_shader});
-        s_fragId = m_shaderManager->createShader({fragSource, "temp_frag.spv", Render::Shader::fragment_shader});
+        s_vertId = m_shaderManager->createShader({vertSource, "temp_vert.spv", ShaderType::vertex_shader});
+        s_fragId = m_shaderManager->createShader({fragSource, "temp_frag.spv", ShaderType::fragment_shader});
 
-        Render::Pipeline::PipelineDesc pdesc {};
+        PipelineDesc pdesc {};
         pdesc.DescriptorId = s_descId;
 
         pdesc.shaders    = {s_vertId, s_fragId};
         pdesc.stageCount = 2;
-        pdesc.flags      = Render::Pipeline::DEPTH_TEST_ENABLE | Render::Pipeline::DEPTH_WRITE_ENABLE;
+        pdesc.flags      = FlagBits::DEPTH_TEST_ENABLE | FlagBits::DEPTH_WRITE_ENABLE;
 
         pdesc.vertexLayout.stride = sizeof(float) * 3;
         pdesc.vertexLayout.attributes.push_back({.location = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = 0});
 
-        pdesc.topology    = Render::Pipeline::PrimitiveTopology::TRIANGLE_LIST;
-        pdesc.polygonMode = Render::Pipeline::PolygonMode::FILL;
-        pdesc.cullMode    = Render::Pipeline::CullMode::NONE;
+        pdesc.topology    = PrimitiveTopology::TRIANGLE_LIST;
+        pdesc.polygonMode = PolygonMode::FILL;
+        pdesc.cullMode    = CullMode::NONE;
 
-        pdesc.sampleCount = Render::Pipeline::SampleCount::SAMPLE_COUNT_1;
+        pdesc.sampleCount = SampleCount::SAMPLE_COUNT_1;
 
-        pdesc.depthCompareOp = Render::Pipeline::CompareOp::LESS;
+        pdesc.depthCompareOp = CompareOp::LESS;
 
         pdesc.viewportCount = 1;
         pdesc.scissorCount  = 1;
-        pdesc.dynamicStates = {Render::Pipeline::DynamicState::VIEWPORT, Render::Pipeline::DynamicState::SCISSOR};
+        pdesc.dynamicStates = {DynamicState::VIEWPORT, DynamicState::SCISSOR};
 
-        pdesc.pushConstantStages = Render::Pipeline::ShaderStage::VERTEX;
+        pdesc.pushConstantStages = ShaderStage::VERTEX;
         pdesc.pushConstantSize   = sizeof(float) * 16;
 
-        pdesc.colorWriteMask      = Render::Pipeline::COLOR_COMPONENT_ALL;
-        pdesc.srcColorBlendFactor = Render::Pipeline::BlendFactor::ONE;
-        pdesc.dstColorBlendFactor = Render::Pipeline::BlendFactor::ZERO;
-        pdesc.colorBlendOp        = Render::Pipeline::BlendOp::ADD;
+        pdesc.colorWriteMask      = ColorComponentBits::COLOR_COMPONENT_ALL;
+        pdesc.srcColorBlendFactor = BlendFactor::ONE;
+        pdesc.dstColorBlendFactor = BlendFactor::ZERO;
+        pdesc.colorBlendOp        = BlendOp::ADD;
 
         s_pipelineId = m_pipelineManager->createPipeline(pdesc);
 
@@ -414,7 +414,7 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
                           ctx->setViewport();
                           ctx->setScissor();
 
-                          ctx->pushConstants(pipelineMgr->getPipelineHandle(pipelineId), static_cast<uint32_t>(Render::Pipeline::ShaderStage::VERTEX), 0, sizeof(draw->mvp), draw->mvp);
+                          ctx->pushConstants(pipelineMgr->getPipelineHandle(pipelineId), static_cast<uint32_t>(ShaderStage::VERTEX), 0, sizeof(draw->mvp), draw->mvp);
 
                           ctx->bindDescriptorSet(descriptorMgr->getDescriptor(draw->descHandle), pipelineMgr->getPipelineHandle(pipelineId));
 

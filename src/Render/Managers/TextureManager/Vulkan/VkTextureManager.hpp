@@ -8,7 +8,7 @@
 #include "../ITextureManager.hpp"
 #include "vk_mem_alloc.h"
 
-namespace SE::Render::Texture
+namespace SE
 {
 
 struct TextureData
@@ -70,6 +70,6 @@ class VkTextureManager : public ITextureManager
     VkSampler       getOrCreateDefaultSampler(SamplerType type);
 };
 
-}  // namespace SE::Render::Texture
+}  // namespace SE
 
 #endif /* VK_TEXTURE_MANAGER_H */

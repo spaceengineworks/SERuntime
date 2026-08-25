@@ -8,7 +8,7 @@
 #include "../IBufferManager.hpp"
 #include "vk_mem_alloc.h"
 
-namespace SE::Render::Buffer
+namespace SE
 {
 
 struct Buffer
@@ -60,6 +60,6 @@ class VkBufferManager : public IBufferManager
     static VkBufferUsageFlags      toVkBufferUsage(BufferUsage usage);
 };
 
-}  // namespace SE::Render::Buffer
+}  // namespace SE
 
 #endif /* VK_BUFFER_MANAGER_H */

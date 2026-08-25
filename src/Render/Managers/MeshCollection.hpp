@@ -13,8 +13,6 @@ namespace SE
 
 constexpr size_t DEFAULT_RESERVED_DRAW_COMMANDS = 1000;
 
-using namespace SE::Render::Buffer;
-
 using SeMeshCollectionID = uint32_t;
 using SeMeshID           = uint32_t;
 using SeSortKey          = uint64_t;

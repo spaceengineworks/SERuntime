@@ -3,7 +3,7 @@
 #include "../../../Managers/DescriptorManager/Vulkan/VkDescriptorManager.hpp"
 #include "../../../Managers/ShaderManager/Vulkan/VkShaderManager.hpp"
 
-namespace SE::Render::Pipeline
+namespace SE
 {
 
 VkPipelineManager::VkPipelineManager() = default;
@@ -72,8 +72,8 @@ void VkPipelineManager::createGraphicsPipeline(PipelineDesc& desc)
 
     for (SeShaderID shaderId : desc.shaders)
     {
-        SeShaderHandle              handle = m_shaderManager->getShaderHandle(shaderId);
-        SE::Render::Shader::Shader* shader = static_cast<SE::Render::Shader::Shader*>(handle);
+        SeShaderHandle handle = m_shaderManager->getShaderHandle(shaderId);
+        Shader*        shader = static_cast<Shader*>(handle);
 
         if (!shader)
             assert(false && "Error bad shader module!");
@@ -202,7 +202,7 @@ void VkPipelineManager::createGraphicsPipeline(PipelineDesc& desc)
 
     if (desc.DescriptorId != SE_INVALID_DESCRIPTOR_ID)
     {
-        auto* handle = static_cast<Descriptor::Descriptor*>(m_descriptorManager->getDescriptor(desc.DescriptorId));
+        auto* handle = static_cast<Descriptor*>(m_descriptorManager->getDescriptor(desc.DescriptorId));
         if (!handle)
             throw std::runtime_error("invalid descriptor id passed to pipeline");
 
@@ -262,4 +262,4 @@ void VkPipelineManager::createGraphicsPipeline(PipelineDesc& desc)
     m_pipelines.push_back(pipeline);
 }
 
-}  // namespace SE::Render::Pipeline
+}  // namespace SE

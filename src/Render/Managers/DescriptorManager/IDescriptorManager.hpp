@@ -6,7 +6,7 @@
 
 #include "../../../space_core.hpp"
 
-namespace SE::Render::Descriptor
+namespace SE
 {
 
 using SeDescriptorID     = uint32_t;
@@ -53,6 +53,6 @@ class IDescriptorManager
    private:
 };
 
-}  // namespace SE::Render::Descriptor
+}  // namespace SE
 
 #endif /* IDESCRIPTOR_MANAGER_HPP */

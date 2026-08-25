@@ -10,10 +10,8 @@
 #include "../../render_core.hpp"
 #include "../ShaderManager/IShaderManager.hpp"
 
-namespace SE::Render::Pipeline
+namespace SE
 {
-
-using namespace SE::Render::Shader;
 
 using SePipelineID     = uint32_t;
 using SePipelineHandle = void*;
@@ -246,6 +244,6 @@ class IPipelineManager
    private:
 };
 
-}  // namespace SE::Render::Pipeline
+}  // namespace SE
 
 #endif /* IPIPELINE_MANAGER_HPP */

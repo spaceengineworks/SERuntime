@@ -2,7 +2,7 @@
 
 #include <stdexcept>
 
-namespace SE::Render::Buffer
+namespace SE
 {
 
 VkBufferManager::VkBufferManager()
@@ -300,4 +300,4 @@ VkBufferUsageFlags VkBufferManager::toVkBufferUsage(BufferUsage usage)
     return flags;
 }
 
-}  // namespace SE::Render::Buffer
+}  // namespace SE

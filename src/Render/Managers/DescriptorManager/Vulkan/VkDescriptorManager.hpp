@@ -9,7 +9,7 @@
 #include "../../../RHI/Vulkan/VulkanConfig.hpp"
 #include "../IDescriptorManager.hpp"
 
-namespace SE::Render::Descriptor
+namespace SE
 {
 
 struct Descriptor
@@ -69,6 +69,6 @@ class VkDescriptorManager : public IDescriptorManager
     static VkShaderStageFlags toVkShaderStages(uint32_t stageFlags);
 };
 
-}  // namespace SE::Render::Descriptor
+}  // namespace SE
 
 #endif /* VK_DESCRIPTOR_MANAGER_HPP */

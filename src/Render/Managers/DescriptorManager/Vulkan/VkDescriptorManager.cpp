@@ -2,7 +2,7 @@
 
 #include "../../PipelineManager/IPipelineManager.hpp"
 
-namespace SE::Render::Descriptor
+namespace SE
 {
 
 VkDescriptorManager::VkDescriptorManager() = default;
@@ -240,13 +240,13 @@ VkDescriptorType VkDescriptorManager::toVkDescriptorType(DescriptorType type)
 VkShaderStageFlags VkDescriptorManager::toVkShaderStages(uint32_t stageFlags)
 {
     VkShaderStageFlags flags = 0;
-    if (stageFlags & static_cast<uint32_t>(Render::Pipeline::ShaderStage::VERTEX))
+    if (stageFlags & static_cast<uint32_t>(ShaderStage::VERTEX))
         flags |= VK_SHADER_STAGE_VERTEX_BIT;
-    if (stageFlags & static_cast<uint32_t>(Render::Pipeline::ShaderStage::FRAGMENT))
+    if (stageFlags & static_cast<uint32_t>(ShaderStage::FRAGMENT))
         flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
-    if (stageFlags & static_cast<uint32_t>(Render::Pipeline::ShaderStage::COMPUTE))
+    if (stageFlags & static_cast<uint32_t>(ShaderStage::COMPUTE))
         flags |= VK_SHADER_STAGE_COMPUTE_BIT;
     return flags;
 }
 
-}  // namespace SE::Render::Descriptor
+}  // namespace SE

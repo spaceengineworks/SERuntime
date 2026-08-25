@@ -1,6 +1,6 @@
 #include "VkTextureManager.hpp"
 
-namespace SE::Render::Texture
+namespace SE
 {
 
 VkTextureManager::VkTextureManager()
@@ -328,4 +328,4 @@ VkSampler VkTextureManager::getOrCreateDefaultSampler(SamplerType type)
     return m_textureSamplers[type];
 }
 
-}  // namespace SE::Render::Texture
+}  // namespace SE
