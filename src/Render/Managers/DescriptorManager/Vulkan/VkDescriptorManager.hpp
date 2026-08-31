@@ -26,6 +26,7 @@ class VkDescriptorManager : public IDescriptorManager
     ~VkDescriptorManager() override;
 
     virtual SeDescriptorID     createDescriptor(DescriptorDesc desc) override;
+    virtual SeResult           updateDescriptor(SeDescriptorID descriptorId, DescriptorDesc bind) override;
     virtual SeResult           destroyDescriptor(SeDescriptorID descriptorId) override;
     virtual SeDescriptorHandle getDescriptor(SeDescriptorID descriptorId) override;
 

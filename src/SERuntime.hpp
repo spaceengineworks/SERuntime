@@ -38,16 +38,20 @@
 
 // TODO:
 //
-//  1. add to collection class SSBO buffer we need some how manage offset of huge buffer for ???
+//  1. add to populate buffer switch to choose between async and sync.
 //  2. build() FrameGraph.
 //  3. add full G buffer pass.
 //  4. clean all includes \ and ThirdParty files.
 //  5. clean up dead/commented code in VulkanDevice destructor, decide cleanUp() vs dtor
+//  6. need refactor to beginSingleTimeCommands and beginSingleTimeCommands use RAII ( just nest in one { //code  } ).
 
 // Important: some how make more stable creation engine and passing viewport to Editor to much boilercode.
 
 // 0. ECS: add World.hpp/.cpp with EnTT registry, call update from runtime loop
 // 1. Physics: add Jolt world init + step call from runtime loop
+
+// Note:
+// Buffer manager can add bugs with adding data to all buffers.
 
 namespace SE
 {

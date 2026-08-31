@@ -1,5 +1,7 @@
 #include "VkShaderManager.hpp"
 
+#include <iostream>
+
 namespace SE
 {
 
@@ -87,10 +89,13 @@ std::vector<uint32_t> VkShaderManager::compileShader(const char* source, const c
 
     if (result.GetCompilationStatus() != shaderc_compilation_status_success)
     {
+        std::cerr << "Shader compilation failed: " << fileName << "\n" << result.GetErrorMessage() << std::endl;
+
         assert(false && "Bad status after shader compilation.");
     }
 
     std::vector<uint32_t> spirv_code(result.cbegin(), result.cend());
+
     return spirv_code;
 }
 

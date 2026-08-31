@@ -46,9 +46,10 @@ class IDescriptorManager
    public:
     virtual ~IDescriptorManager() = default;
 
-    virtual SeDescriptorID     createDescriptor(DescriptorDesc desc)          = 0;
-    virtual SeResult           destroyDescriptor(SeDescriptorID descriptorId) = 0;
-    virtual SeDescriptorHandle getDescriptor(SeDescriptorID descriptorId)     = 0;
+    virtual SeDescriptorID     createDescriptor(DescriptorDesc desc)                              = 0;
+    virtual SeResult           updateDescriptor(SeDescriptorID descriptorId, DescriptorDesc bind) = 0;
+    virtual SeResult           destroyDescriptor(SeDescriptorID descriptorId)                     = 0;
+    virtual SeDescriptorHandle getDescriptor(SeDescriptorID descriptorId)                         = 0;
 
    private:
 };

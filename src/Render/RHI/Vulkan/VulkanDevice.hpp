@@ -129,6 +129,25 @@ class VulkanDevice : public RHI
         vkCmdBindIndexBuffer(m_currCmdBuff, buffer->buffer, 0, VK_INDEX_TYPE_UINT32);
     }
 
+    // TODO:
+    virtual void bindStorageBuffer(void* handle)
+    {
+        MeshCollection* coll = static_cast<MeshCollection*>(handle);
+
+        Buffer* buffer = static_cast<Buffer*>(coll->getStorageBufferHandle());
+
+        vkCmdBindIndexBuffer(m_currCmdBuff, buffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+    }
+
+    virtual void bindTransformsBuffer(void* handle)
+    {
+        MeshCollection* coll = static_cast<MeshCollection*>(handle);
+
+        Buffer* buffer = static_cast<Buffer*>(coll->getTransformsBufferHandle());
+
+        vkCmdBindIndexBuffer(m_currCmdBuff, buffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+    }
+
     virtual void setViewport()
     {
         VkViewport viewport {};

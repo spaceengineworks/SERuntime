@@ -51,7 +51,7 @@ SeBufferID VkBufferManager::createBuffer(BufferDesc desc)
     return id;
 }
 
-SeResult VkBufferManager::populateBuffer(SeBufferID bufferId, uint32_t offset, std::span<const uint8_t> data)
+SeResult VkBufferManager::populateBuffer(SeBufferID bufferId, uint32_t offset, std::span<const uint8_t> data, UploadMode mode)
 {
     if (bufferId == SE_INVALID_BUFFER_ID || bufferId >= m_buffers.size())
         return SE_FAILED;

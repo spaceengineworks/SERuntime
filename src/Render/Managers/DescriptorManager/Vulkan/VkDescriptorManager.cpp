@@ -30,48 +30,78 @@ SeDescriptorID VkDescriptorManager::createDescriptor(DescriptorDesc desc)
     if (set == VK_NULL_HANDLE)
         return SE_INVALID_DESCRIPTOR_ID;
 
-    std::vector<VkWriteDescriptorSet>   writes;
     std::vector<VkDescriptorImageInfo>  imageInfos;
     std::vector<VkDescriptorBufferInfo> bufferInfos;
 
     imageInfos.reserve(desc.bindings.size());
     bufferInfos.reserve(desc.bindings.size());
 
+    struct PendingWrite
+    {
+        uint32_t       binding;
+        uint32_t       count;
+        DescriptorType type;
+        bool           isBuffer;
+        size_t         index;
+    };
+    std::vector<PendingWrite> pending;
+    pending.reserve(desc.bindings.size());
+
     for (const auto& binding : desc.bindings)
     {
-        VkWriteDescriptorSet write {};
-        write.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write.dstSet          = set;
-        write.dstBinding      = binding.binding;
-        write.dstArrayElement = 0;
-        write.descriptorCount = binding.count;
-        write.descriptorType  = toVkDescriptorType(binding.type);
-
         if (binding.type == DescriptorType::UNIFORM_BUFFER || binding.type == DescriptorType::STORAGE_BUFFER)
         {
+            if (binding.buffer == nullptr)
+                continue;
+
             VkDescriptorBufferInfo bufferInfo {};
             bufferInfo.buffer = reinterpret_cast<VkBuffer>(binding.buffer);
             bufferInfo.offset = binding.offset;
             bufferInfo.range  = (binding.range == 0) ? VK_WHOLE_SIZE : binding.range;
 
             bufferInfos.push_back(bufferInfo);
-            write.pBufferInfo = &bufferInfos.back();
+            pending.push_back({binding.binding, binding.count, binding.type, true, bufferInfos.size() - 1});
         }
-        else
+        else if (binding.type == DescriptorType::COMBINED_IMAGE_SAMPLER || binding.type == DescriptorType::SAMPLED_IMAGE || binding.type == DescriptorType::STORAGE_IMAGE)
         {
+            if (binding.imageView == nullptr)
+                continue;
+
             VkDescriptorImageInfo imageInfo {};
             imageInfo.imageView   = static_cast<VkImageView>(binding.imageView);
             imageInfo.sampler     = static_cast<VkSampler>(binding.sampler);
             imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
             imageInfos.push_back(imageInfo);
-            write.pImageInfo = &imageInfos.back();
+            pending.push_back({binding.binding, binding.count, binding.type, false, imageInfos.size() - 1});
         }
-
-        writes.push_back(write);
     }
 
-    vkUpdateDescriptorSets(*m_config->device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+    if (!pending.empty())
+    {
+        std::vector<VkWriteDescriptorSet> writes;
+        writes.reserve(pending.size());
+
+        for (const auto& p : pending)
+        {
+            VkWriteDescriptorSet write {};
+            write.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            write.dstSet          = set;
+            write.dstBinding      = p.binding;
+            write.dstArrayElement = 0;
+            write.descriptorCount = p.count;
+            write.descriptorType  = toVkDescriptorType(p.type);
+
+            if (p.isBuffer)
+                write.pBufferInfo = &bufferInfos[p.index];
+            else
+                write.pImageInfo = &imageInfos[p.index];
+
+            writes.push_back(write);
+        }
+
+        vkUpdateDescriptorSets(*m_config->device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+    }
 
     Descriptor descriptor;
     descriptor.layout = layout;
@@ -89,6 +119,91 @@ SeDescriptorID VkDescriptorManager::createDescriptor(DescriptorDesc desc)
     m_descriptors.push_back(descriptor);
 
     return m_nextId++;
+}
+
+SeResult VkDescriptorManager::updateDescriptor(SeDescriptorID descriptorId, DescriptorDesc bind)
+{
+    if (descriptorId == SE_INVALID_DESCRIPTOR_ID || descriptorId >= m_descriptors.size())
+        return SE_FAILED;
+
+    Descriptor& descriptor = m_descriptors[descriptorId];
+    if (descriptor.set == VK_NULL_HANDLE)
+        return SE_FAILED;
+
+    std::vector<VkDescriptorImageInfo>  imageInfos;
+    std::vector<VkDescriptorBufferInfo> bufferInfos;
+
+    imageInfos.reserve(bind.bindings.size());
+    bufferInfos.reserve(bind.bindings.size());
+
+    struct PendingWrite
+    {
+        uint32_t       binding;
+        uint32_t       count;
+        DescriptorType type;
+        bool           isBuffer;
+        size_t         index;
+    };
+    std::vector<PendingWrite> pending;
+    pending.reserve(bind.bindings.size());
+
+    for (const auto& binding : bind.bindings)
+    {
+        if (binding.type == DescriptorType::UNIFORM_BUFFER || binding.type == DescriptorType::STORAGE_BUFFER)
+        {
+            if (binding.buffer == nullptr)
+                continue;
+
+            VkDescriptorBufferInfo bufferInfo {};
+            bufferInfo.buffer = reinterpret_cast<VkBuffer>(binding.buffer);
+            bufferInfo.offset = binding.offset;
+            bufferInfo.range  = (binding.range == 0) ? VK_WHOLE_SIZE : binding.range;
+
+            bufferInfos.push_back(bufferInfo);
+            pending.push_back({binding.binding, binding.count, binding.type, true, bufferInfos.size() - 1});
+        }
+        else if (binding.type == DescriptorType::COMBINED_IMAGE_SAMPLER || binding.type == DescriptorType::SAMPLED_IMAGE || binding.type == DescriptorType::STORAGE_IMAGE)
+        {
+            if (binding.imageView == nullptr)
+                continue;
+
+            VkDescriptorImageInfo imageInfo {};
+            imageInfo.imageView   = static_cast<VkImageView>(binding.imageView);
+            imageInfo.sampler     = static_cast<VkSampler>(binding.sampler);
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+            imageInfos.push_back(imageInfo);
+            pending.push_back({binding.binding, binding.count, binding.type, false, imageInfos.size() - 1});
+        }
+    }
+
+    if (!pending.empty())
+    {
+        std::vector<VkWriteDescriptorSet> writes;
+        writes.reserve(pending.size());
+
+        for (const auto& p : pending)
+        {
+            VkWriteDescriptorSet write {};
+            write.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            write.dstSet          = descriptor.set;
+            write.dstBinding      = p.binding;
+            write.dstArrayElement = 0;
+            write.descriptorCount = p.count;
+            write.descriptorType  = toVkDescriptorType(p.type);
+
+            if (p.isBuffer)
+                write.pBufferInfo = &bufferInfos[p.index];
+            else
+                write.pImageInfo = &imageInfos[p.index];
+
+            writes.push_back(write);
+        }
+
+        vkUpdateDescriptorSets(*m_config->device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+    }
+
+    return SE_SUCCESS;
 }
 
 SeResult VkDescriptorManager::destroyDescriptor(SeDescriptorID descriptorId)
@@ -146,7 +261,9 @@ VkDescriptorSetLayout VkDescriptorManager::getOrCreateLayout(const DescriptorDes
         return it->second;
 
     std::vector<VkDescriptorSetLayoutBinding> vkBindings;
+    std::vector<VkDescriptorBindingFlags>     bindingFlags;
     vkBindings.reserve(desc.bindings.size());
+    bindingFlags.reserve(desc.bindings.size());
 
     for (const auto& b : desc.bindings)
     {
@@ -158,10 +275,18 @@ VkDescriptorSetLayout VkDescriptorManager::getOrCreateLayout(const DescriptorDes
         layoutBinding.pImmutableSamplers = nullptr;
 
         vkBindings.push_back(layoutBinding);
+
+        bindingFlags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);  // TODO: make this add through desc
     }
+
+    VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsInfo {};
+    bindingFlagsInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+    bindingFlagsInfo.bindingCount  = static_cast<uint32_t>(bindingFlags.size());
+    bindingFlagsInfo.pBindingFlags = bindingFlags.data();
 
     VkDescriptorSetLayoutCreateInfo layoutInfo {};
     layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.pNext        = &bindingFlagsInfo;
     layoutInfo.bindingCount = static_cast<uint32_t>(vkBindings.size());
     layoutInfo.pBindings    = vkBindings.data();
 

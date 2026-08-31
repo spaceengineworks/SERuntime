@@ -6,6 +6,10 @@
 #include <span>
 #include <vector>
 
+// clang-format off
+#include "../RHI/Vulkan/VulkanConfig.hpp"
+// clang-format on
+
 #include "BufferManager/IBufferManager.hpp"
 #include "MeshCollection.hpp"
 
@@ -20,7 +24,14 @@ class MeshCollectionFabric
 
     inline void setBufferManager(IBufferManager* bufferManager)
     {
-        m_bufferManager = bufferManager;
+        if (bufferManager)
+            m_bufferManager = bufferManager;
+    }
+
+    inline void setConfig(SharedVulkanConfig* config)
+    {
+        if (config)
+            m_config = config;
     }
 
     SeMeshCollectionID createCollection(size_t maxVertexBytes, size_t maxIndexBytes);
@@ -29,6 +40,7 @@ class MeshCollectionFabric
 
    private:
     IBufferManager*             m_bufferManager = nullptr;
+    SharedVulkanConfig*         m_config        = nullptr;
     std::vector<MeshCollection> m_collections;
 };
 

@@ -1,6 +1,9 @@
 // TODO: remove
+// clang-format off
 #define STB_IMAGE_IMPLEMENTATION
 #include "ThirdParty/stb_image.h"
+#include <glm/gtc/matrix_transform.hpp>
+// clang-format on
 //
 #include <iostream>
 
@@ -105,6 +108,7 @@ void SERuntime::initEngine()
 
     m_meshFabric = std::make_unique<MeshCollectionFabric>();
     m_meshFabric->setBufferManager(m_bufferManager.get());
+    m_meshFabric->setConfig(config);
 }
 
 SERuntime::~SERuntime() = default;
@@ -217,16 +221,33 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
 
         DescriptorDesc bindDesc {};
 
-        DescriptorBindingDesc bind {};
+        DescriptorBindingDesc bind1 {};
         auto*                 texData = static_cast<TextureData*>(m_textureManager->getTextureHandle(s_textureId));
 
-        bind.imageView  = texData->imageView;
-        bind.sampler    = texData->sampler;
-        bind.binding    = 0;
-        bind.type       = DescriptorType::COMBINED_IMAGE_SAMPLER;
-        bind.stageFlags = static_cast<uint32_t>(ShaderStage::FRAGMENT);
+        bind1.imageView  = texData->imageView;
+        bind1.sampler    = texData->sampler;
+        bind1.binding    = 0;
+        bind1.type       = DescriptorType::COMBINED_IMAGE_SAMPLER;
+        bind1.stageFlags = static_cast<uint32_t>(ShaderStage::FRAGMENT);
 
-        bindDesc.bindings.push_back(bind);
+        bindDesc.bindings.push_back(bind1);
+
+        /* storage buffer and transform buffer */
+        DescriptorBindingDesc bind2 {};
+        bind2.binding    = 1;
+        bind2.type       = DescriptorType::STORAGE_BUFFER;
+        bind2.buffer     = nullptr;
+        bind2.stageFlags = static_cast<uint32_t>(ShaderStage::VERTEX);
+
+        bindDesc.bindings.push_back(bind2);
+
+        DescriptorBindingDesc bind3 {};
+        bind3.binding    = 2;
+        bind3.type       = DescriptorType::STORAGE_BUFFER;
+        bind3.buffer     = nullptr;
+        bind3.stageFlags = static_cast<uint32_t>(ShaderStage::VERTEX);
+
+        bindDesc.bindings.push_back(bind3);
 
         s_descId = m_descriptorManager->createDescriptor(bindDesc);
 
@@ -235,21 +256,45 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
 
         const char* vertSource = R"(
         #version 450
+        #extension GL_ARB_shader_draw_parameters : require
 
         layout(location = 0) in vec3 inPosition;
-
         layout(location = 0) out vec2 fragUV;
 
         layout(push_constant) uniform PushConstants
         {
-            mat4 mvp;
+            mat4 viewProj;
         } push;
+
+        struct MeshInstanceData {
+            uint transformIndex;
+        };
+
+        layout(std430, set = 0, binding = 1) readonly buffer StorageBuffer
+        {
+            MeshInstanceData meshInstance[];
+        } storage;
+
+        layout(std430, set = 0, binding = 2) readonly buffer TransformBuffer
+        {
+            mat4 models[];
+        } transforms;
 
         void main()
         {
-            gl_Position = push.mvp * vec4(inPosition, 1.0);
+            uint meshIndex = gl_BaseInstanceARB;
 
-            gl_Position.z = gl_Position.z * 0.4 + 0.5;
+           MeshInstanceData instanceData = storage.meshInstance[meshIndex];
+
+            uint transformIdx  = instanceData.transformIndex;
+
+            mat4 modelMatrix = transforms.models[transformIdx];
+
+            vec4 worldPosition = modelMatrix * vec4(inPosition, 1.0);
+
+            gl_Position = push.viewProj * worldPosition;
+
+            gl_Position.z = gl_Position.z * 0.5 + 0.5;
 
             const vec2 uvs[12] = vec2[](
                 vec2(0.0, 0.0),
@@ -275,6 +320,7 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
 
         const char* fragSource = R"(
         #version 450
+        #extension GL_ARB_shader_draw_parameters : require
 
         layout(location = 0) in vec2 fragUV;
 
@@ -364,6 +410,36 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
 
     uint32_t idx = collection->addMesh(vertexData, indexData, static_cast<uint32_t>(mesh.indices.size()), sizeof(float) * 3, 0);
 
+    /* load mvp for this mesh */
+    glm::mat4 modelMatrix = glm::mat4(1.0f);
+    modelMatrix           = glm::scale(modelMatrix, glm::vec3(4.0f));
+
+    std::span<const uint8_t> transformData {reinterpret_cast<const uint8_t*>(&modelMatrix), sizeof(glm::mat4)};
+
+    collection->updateMeshData(WhichType::TRANSFORMS, idx, transformData);
+
+    DescriptorDesc        bindDesc {};
+    DescriptorBindingDesc update1Bind {};
+
+    update1Bind.binding = 1;
+    update1Bind.type    = DescriptorType::STORAGE_BUFFER;
+    update1Bind.buffer  = static_cast<Buffer*>(collection->getStorageBufferHandle())->buffer;
+    update1Bind.range   = VK_WHOLE_SIZE;
+
+    bindDesc.bindings.push_back(update1Bind);
+
+    DescriptorBindingDesc update2Bind {};
+
+    update2Bind.binding = 2;
+    update2Bind.type    = DescriptorType::STORAGE_BUFFER;
+    update2Bind.buffer  = static_cast<Buffer*>(collection->getTransformsBufferHandle())->buffer;
+    update2Bind.range   = VK_WHOLE_SIZE;
+
+    bindDesc.bindings.push_back(update2Bind);
+
+    if (m_descriptorManager->updateDescriptor(s_descId, bindDesc) != SE_SUCCESS)
+        std::cout << "updateDescriptor didnt update descriptor" << std::endl;
+
     // uint32_t idx = collection->addMesh(vertexData, indexData, static_cast<uint32_t>(std::size(indices)), sizeof(float) * 3, 0);
 
     std::cout << idx << std::endl;
@@ -373,37 +449,16 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
     /* ------------------------- */
 
     m_frameGraph->add("draw_triangle", GPUFlags::Render, draw,
-                      [meshMgr, pipelineMgr, descriptorMgr, pipelineId, draw](RHI* ctx)
+                      [meshMgr, pipelineMgr, descriptorMgr, pipelineId, draw, idx](RHI* ctx)
                       {
-                          static float angle = 0.0f;
-                          angle += 0.002f;
+                          /* temp */
+                          static glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(3.5f));
 
-                          float cy = std::cos(angle);
-                          float sy = std::sin(angle);
+                          modelMatrix = glm::rotate(modelMatrix, glm::radians(0.1f), glm::normalize(glm::vec3(1.0f, 0.7f, 0.4f)));
 
-                          float centerY = (0.032987f + 0.187321f) * 0.5f;
+                          std::span<const uint8_t> transformData {reinterpret_cast<const uint8_t*>(&modelMatrix), sizeof(glm::mat4)};
 
-                          float scale = 7.0f;
-
-                          draw->mvp[0] = cy * scale;
-                          draw->mvp[1] = 0.0f;
-                          draw->mvp[2] = -sy * scale;
-                          draw->mvp[3] = 0.0f;
-
-                          draw->mvp[4] = 0.0f;
-                          draw->mvp[5] = -scale;
-                          draw->mvp[6] = 0.0f;
-                          draw->mvp[7] = 0.0f;
-
-                          draw->mvp[8]  = sy * scale;
-                          draw->mvp[9]  = 0.0f;
-                          draw->mvp[10] = cy * scale;
-                          draw->mvp[11] = 0.0f;
-
-                          draw->mvp[12] = 0.0f;
-                          draw->mvp[13] = centerY * scale;
-                          draw->mvp[14] = 0.0f;
-                          draw->mvp[15] = 1.0f;
+                          meshMgr->getCollection(draw->collectionHandle)->updateMeshData(WhichType::TRANSFORMS, idx, transformData);
 
                           meshMgr->getCollection(draw->collectionHandle)->buildDrawCommands();
 

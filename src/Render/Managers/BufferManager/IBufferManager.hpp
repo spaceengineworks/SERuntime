@@ -19,6 +19,12 @@ enum class BufferMemoryType
     HOST_VISIBLE,
 };
 
+enum class UploadMode
+{
+    Sync,
+    Async
+};
+
 enum class BufferUsage : uint32_t
 {
     NONE         = 0,
@@ -59,10 +65,10 @@ class IBufferManager
    public:
     virtual ~IBufferManager() = default;
 
-    virtual SeBufferID     createBuffer(BufferDesc desc)                                                       = 0;
-    virtual SeResult       populateBuffer(SeBufferID bufferId, uint32_t offset, std::span<const uint8_t> data) = 0;
-    virtual SeResult       destroyBuffer(SeBufferID bufferId)                                                  = 0;
-    virtual SeBufferHandle getBufferHandle(SeBufferID bufferId)                                                = 0;
+    virtual SeBufferID     createBuffer(BufferDesc desc)                                                                                           = 0;
+    virtual SeResult       populateBuffer(SeBufferID bufferId, uint32_t offset, std::span<const uint8_t> data, UploadMode mode = UploadMode::Sync) = 0;
+    virtual SeResult       destroyBuffer(SeBufferID bufferId)                                                                                      = 0;
+    virtual SeBufferHandle getBufferHandle(SeBufferID bufferId)                                                                                    = 0;
 
    private:
 };

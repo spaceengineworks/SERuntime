@@ -28,7 +28,7 @@ class VkBufferManager : public IBufferManager
     ~VkBufferManager() override;
 
     SeBufferID     createBuffer(BufferDesc desc) override;
-    SeResult       populateBuffer(SeBufferID bufferId, uint32_t offset, std::span<const uint8_t> data) override;
+    SeResult       populateBuffer(SeBufferID bufferId, uint32_t offset, std::span<const uint8_t> data, UploadMode mode = UploadMode::Sync) override;
     SeResult       destroyBuffer(SeBufferID bufferId) override;
     SeBufferHandle getBufferHandle(SeBufferID bufferId) override;
 
