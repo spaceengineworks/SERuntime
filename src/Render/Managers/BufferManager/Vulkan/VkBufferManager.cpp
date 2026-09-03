@@ -60,10 +60,18 @@ SeResult VkBufferManager::populateBuffer(SeBufferID bufferId, uint32_t offset, s
 
     if (offset + data.size() > buf.desc.size)
     {
+        m_pendingWrites.erase(bufferId);
+
         VkDeviceSize newSize      = std::max(buf.desc.size * 2, (VkDeviceSize) (offset + data.size()));
         SeResult     resizeResult = resizeBuffer(bufferId, newSize);
         if (resizeResult != SE_SUCCESS)
             return SE_FAILED;
+    }
+
+    if (mode == UploadMode::Async && buf.desc.memoryType == BufferMemoryType::HOST_VISIBLE)
+    {
+        m_pendingWrites[bufferId].push_back({offset, std::vector<uint8_t>(data.begin(), data.end())});
+        return SE_SUCCESS;
     }
 
     if (buf.desc.memoryType == BufferMemoryType::HOST_VISIBLE)
@@ -107,6 +115,30 @@ SeResult VkBufferManager::populateBuffer(SeBufferID bufferId, uint32_t offset, s
     }
 
     buf.populated = std::max(buf.populated, (VkDeviceSize) (offset + data.size()));
+    return SE_SUCCESS;
+}
+
+SeResult VkBufferManager::commitPendingUploads(SeBufferID bufferId)
+{
+    auto it = m_pendingWrites.find(bufferId);
+    if (it == m_pendingWrites.end())
+        return SE_SUCCESS;
+
+    if (bufferId >= m_buffers.size())
+        return SE_FAILED;
+
+    Buffer& buf = m_buffers[bufferId];
+
+    for (auto& w : it->second)
+    {
+        VkResult result = vmaCopyMemoryToAllocation(*m_config->allocator, w.data.data(), buf.allocation, w.offset, w.data.size());
+        if (result != VK_SUCCESS)
+            return SE_FAILED;
+
+        buf.populated = std::max(buf.populated, (VkDeviceSize) (w.offset + w.data.size()));
+    }
+
+    m_pendingWrites.erase(it);
     return SE_SUCCESS;
 }
 

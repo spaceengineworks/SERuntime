@@ -101,13 +101,18 @@ SeResult MeshCollection::updateMeshData(WhichType update, SeMeshID meshId, std::
             if (data.size() != sizeof(glm::mat4))
                 return SE_FAILED;
 
-            uint32_t slot = m_subMeshes[meshId].meshData.transformIndex;
+            uint32_t slot         = m_subMeshes[meshId].meshData.transformIndex;
+            uint32_t currentFrame = *m_config->currentFrame;
 
             for (size_t i = 0; i < m_transformsBuffer.size(); i++)
             {
                 if (m_bufferManager->populateBuffer(m_transformsBuffer[i], slot * sizeof(glm::mat4), data, UploadMode::Async) != SE_SUCCESS)
                     return SE_FAILED;
             }
+
+            if (m_bufferManager->commitPendingUploads(m_transformsBuffer[currentFrame]) != SE_SUCCESS)
+                return SE_FAILED;
+
             return SE_SUCCESS;
         }
 
@@ -118,17 +123,30 @@ SeResult MeshCollection::updateMeshData(WhichType update, SeMeshID meshId, std::
 
             std::memcpy(&m_subMeshes[meshId].meshData, data.data(), sizeof(MeshInstanceData));
 
+            uint32_t currentFrame = *m_config->currentFrame;
+
             for (size_t i = 0; i < m_storageBuffer.size(); i++)
             {
                 if (m_bufferManager->populateBuffer(m_storageBuffer[i], meshId * sizeof(MeshInstanceData), data, UploadMode::Async) != SE_SUCCESS)
                     return SE_FAILED;
             }
+
+            if (m_bufferManager->commitPendingUploads(m_storageBuffer[currentFrame]) != SE_SUCCESS)
+                return SE_FAILED;
+
             return SE_SUCCESS;
         }
 
         default:
             return SE_FAILED;
     }
+}
+
+void MeshCollection::flushAsyncUploads()
+{
+    uint32_t frame = *m_config->currentFrame;
+    m_bufferManager->commitPendingUploads(m_storageBuffer[frame]);
+    m_bufferManager->commitPendingUploads(m_transformsBuffer[frame]);
 }
 
 SeResult MeshCollection::removeMesh(SeMeshID meshId)

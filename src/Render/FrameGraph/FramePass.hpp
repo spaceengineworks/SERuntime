@@ -2,6 +2,7 @@
 #define FRAME_PASS_H
 
 #include <functional>
+#include <ranges>
 
 #include "IPassParameters.hpp"
 
@@ -28,6 +29,22 @@ class FramePass
         if (m_passCallback)
             m_passCallback(ctx);
     }
+
+    // clang-format off
+
+    auto reads() const
+    {
+        return m_passParameters | std::views::filter(
+            [](const ResourceField& f) { return f.access == ResourceAccess::Read; });
+    }
+
+    auto writes() const
+    {
+        return m_passParameters | std::views::filter(
+            [](const ResourceField& f) { return f.access == ResourceAccess::Write; });
+    }
+
+    // clang-format on
 
     std::string                m_passName;
     GPUFlags                   m_passflags;

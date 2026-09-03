@@ -70,6 +70,8 @@ class IBufferManager
     virtual SeResult       destroyBuffer(SeBufferID bufferId)                                                                                      = 0;
     virtual SeBufferHandle getBufferHandle(SeBufferID bufferId)                                                                                    = 0;
 
+    virtual SeResult commitPendingUploads(SeBufferID bufferId) = 0;
+
    private:
 };
 

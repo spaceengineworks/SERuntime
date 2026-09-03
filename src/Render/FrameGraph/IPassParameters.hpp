@@ -3,8 +3,12 @@
 
 #include <vector>
 
+#include "../ThirdParty/thsvs_simpler_RHI.h"
+
 namespace SE
 {
+
+constexpr uint32_t VIEWPORT_DEFAULT_HANDLE = UINT32_MAX;
 
 enum class ResourceType
 {
@@ -15,11 +19,36 @@ enum class ResourceType
     vertex
 };
 
+enum class ResourceAccess : uint8_t
+{
+    Read,
+    Write
+};
+
 struct ResourceField
 {
-    ResourceType type = ResourceType::none;
-    uint32_t     handle;
+    ResourceType    type   = ResourceType::none;
+    ResourceAccess  access = ResourceAccess::Read;
+    uint32_t        handle;
+    ThsvsAccessType gpuAccess      = THSVS_ACCESS_NONE;
+    bool            isRenderTarget = false;
 };
+
+inline ThsvsAccessType inferDefaultGpuAccess(ResourceType type, ResourceAccess access)
+{
+    switch (type)
+    {
+        case ResourceType::texture:
+            return access == ResourceAccess::Write ? THSVS_ACCESS_COLOR_ATTACHMENT_WRITE : THSVS_ACCESS_FRAGMENT_SHADER_READ_SAMPLED_IMAGE_OR_UNIFORM_TEXEL_BUFFER;
+        case ResourceType::vertex:
+            return THSVS_ACCESS_VERTEX_BUFFER;
+        case ResourceType::index:
+            return THSVS_ACCESS_INDEX_BUFFER;
+        case ResourceType::shader:
+        default:
+            return THSVS_ACCESS_GENERAL;
+    }
+}
 
 class IPassParameters
 {
@@ -43,7 +72,7 @@ class PassClearParameters : public IPassParameters
 
     std::vector<ResourceField> getResources() override
     {
-        return {{ResourceType::none, UINT32_MAX}};
+        return {{ResourceType::texture, ResourceAccess::Write, VIEWPORT_DEFAULT_HANDLE, THSVS_ACCESS_NONE, true}};
     }
 
    private:
@@ -59,18 +88,30 @@ class PassDrawParameters : public IPassParameters
     uint32_t descHandle       = 0;
     uint32_t collectionHandle = 0;
 
-    float mvp[16] = {
-        // clang-format off
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-        // clang-format on
-    };
+    float mvp[16] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 
     std::vector<ResourceField> getResources() override
     {
-        return {{ResourceType::texture, textureHandle}};
+        return {
+            {ResourceType::texture, ResourceAccess::Read, textureHandle, THSVS_ACCESS_NONE, false},
+            {ResourceType::texture, ResourceAccess::Write, VIEWPORT_DEFAULT_HANDLE, THSVS_ACCESS_NONE, true},
+        };
+    }
+
+   private:
+};
+
+class PassGBufferParameters : public IPassParameters
+{
+   public:
+    PassGBufferParameters()           = default;
+    ~PassGBufferParameters() override = default;
+
+    std::vector<ResourceField> getResources() override
+    {
+        return {
+
+        };
     }
 
    private:

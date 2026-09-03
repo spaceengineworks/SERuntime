@@ -109,6 +109,18 @@ void SERuntime::initEngine()
     m_meshFabric = std::make_unique<MeshCollectionFabric>();
     m_meshFabric->setBufferManager(m_bufferManager.get());
     m_meshFabric->setConfig(config);
+
+    m_frameGraph->registerResolver(ResourceType::texture,
+                                   [this](uint32_t handle) -> SeResourseHandle
+                                   {
+                                       if (handle == VIEWPORT_DEFAULT_HANDLE)
+                                           return m_context->getViewportImageHandle(*m_context->getCurrentFrameIndex());
+
+                                       auto* texData = static_cast<TextureData*>(m_textureManager->getTextureHandle(handle));
+                                       return texData ? texData->image : nullptr;
+                                   });
+
+    m_frameGraph->markOutput(ResourceType::texture, VIEWPORT_DEFAULT_HANDLE, THSVS_ACCESS_FRAGMENT_SHADER_READ_SAMPLED_IMAGE_OR_UNIFORM_TEXEL_BUFFER);
 }
 
 SERuntime::~SERuntime() = default;
@@ -137,11 +149,9 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
                       [clear](RHI* ctx)
                       {
                           static float speed[3] = {0.00005f, 0.0002f, 0.0003f};
-
                           for (int i = 0; i < 3; ++i)
                           {
                               clear->m_clearColor[i] += speed[i];
-
                               if (clear->m_clearColor[i] >= 1.0f)
                               {
                                   clear->m_clearColor[i] = 1.0f;
@@ -153,28 +163,7 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
                                   speed[i]               = -speed[i];
                               }
                           }
-
                           ctx->setClearColor(clear->m_clearColor[0], clear->m_clearColor[1], clear->m_clearColor[2]);
-
-                          SeResourseHandle viewportImage = ctx->getViewportImageHandle(*ctx->getCurrentFrameIndex());
-
-                          BarrierDesc barrier {};
-                          barrier.resourse = viewportImage;
-                          barrier.type     = ResourseType::Image;
-
-                          barrier.prevAccesses = {THSVS_ACCESS_FRAGMENT_SHADER_READ_SAMPLED_IMAGE_OR_UNIFORM_TEXEL_BUFFER};
-                          barrier.nextAccesses = {THSVS_ACCESS_COLOR_ATTACHMENT_WRITE};
-
-                          barrier.prevLayout = THSVS_IMAGE_LAYOUT_OPTIMAL;
-                          barrier.nextLayout = THSVS_IMAGE_LAYOUT_OPTIMAL;
-
-                          barrier.baseMipLevel   = 0;
-                          barrier.levelCount     = 1;
-                          barrier.baseArrayLayer = 0;
-                          barrier.layerCount     = 1;
-
-                          ctx->insertPipelineBarrier(&barrier);
-
                           ctx->beginRenderPass();
                       });
 
@@ -448,13 +437,14 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
 
     /* ------------------------- */
 
-    m_frameGraph->add("draw_triangle", GPUFlags::Render, draw,
+    m_frameGraph->add("forward_pass", GPUFlags::Render, draw,
                       [meshMgr, pipelineMgr, descriptorMgr, pipelineId, draw, idx](RHI* ctx)
                       {
                           /* temp */
-                          static glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(3.5f));
+                          meshMgr->getCollection(draw->collectionHandle)->flushAsyncUploads();
 
-                          modelMatrix = glm::rotate(modelMatrix, glm::radians(0.1f), glm::normalize(glm::vec3(1.0f, 0.7f, 0.4f)));
+                          static glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(3.5f));
+                          modelMatrix                  = glm::rotate(modelMatrix, glm::radians(0.1f), glm::normalize(glm::vec3(1.0f, 0.7f, 0.4f)));
 
                           std::span<const uint8_t> transformData {reinterpret_cast<const uint8_t*>(&modelMatrix), sizeof(glm::mat4)};
 

@@ -2,6 +2,7 @@
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
 
 #include "RHI/Vulkan/VulkanDevice.hpp"
+#include "FrameGraph/FrameGraph.hpp"
 
 #include <iostream>
 #include <tracy/Tracy.hpp>

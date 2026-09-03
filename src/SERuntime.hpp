@@ -44,6 +44,8 @@
 //  4. clean all includes \ and ThirdParty files.
 //  5. clean up dead/commented code in VulkanDevice destructor, decide cleanUp() vs dtor
 //  6. need refactor to beginSingleTimeCommands and beginSingleTimeCommands use RAII ( just nest in one { //code  } ).
+//  7. refactor cmake make all submodules dont be dependent from vcpkg.
+//  8. add tracy through own macros make it for debug and release
 
 // Important: some how make more stable creation engine and passing viewport to Editor to much boilercode.
 

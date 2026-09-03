@@ -2,11 +2,13 @@
 #define VK_BUFFER_MANAGER_H
 
 #include <queue>
+#include <unordered_map>
 #include <vector>
 
 #include "../../../RHI/Vulkan/VulkanConfig.hpp"
 #include "../IBufferManager.hpp"
 #include "vk_mem_alloc.h"
+
 
 namespace SE
 {
@@ -32,6 +34,8 @@ class VkBufferManager : public IBufferManager
     SeResult       destroyBuffer(SeBufferID bufferId) override;
     SeBufferHandle getBufferHandle(SeBufferID bufferId) override;
 
+    SeResult commitPendingUploads(SeBufferID bufferId) override;
+
     void setConfig(SharedVulkanConfig* config)
     {
         if (config)
@@ -43,6 +47,14 @@ class VkBufferManager : public IBufferManager
     using FreeBufferIdHeap = std::priority_queue<SeBufferID, std::vector<SeBufferID>, std::greater<SeBufferID>>;
 
     /* --------------- */
+
+    struct PendingWrite
+    {
+        uint32_t             offset;
+        std::vector<uint8_t> data;
+    };
+
+    std::unordered_map<SeBufferID, std::vector<PendingWrite>> m_pendingWrites;
 
     SharedVulkanConfig* m_config = nullptr;
 

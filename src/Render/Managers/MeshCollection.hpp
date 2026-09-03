@@ -73,6 +73,7 @@ class MeshCollection
     SeMeshID addMesh(std::span<const uint8_t> vertexData, std::span<const uint8_t> indexData, uint32_t indexCount, uint32_t vertexStride, SeSortKey sortKey);
 
     SeResult updateMeshData(WhichType update, SeMeshID meshId, std::span<const uint8_t> data);
+    void     flushAsyncUploads();
     SeResult removeMesh(SeMeshID meshId);
 
     void buildDrawCommands();
