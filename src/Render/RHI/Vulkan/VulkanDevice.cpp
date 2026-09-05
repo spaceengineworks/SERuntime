@@ -2,10 +2,11 @@
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
 
 #include "RHI/Vulkan/VulkanDevice.hpp"
-#include "FrameGraph/FrameGraph.hpp"
 
 #include <iostream>
 #include <tracy/Tracy.hpp>
+
+#include "FrameGraph/FrameGraph.hpp"
 
 #define THSVS_SIMPLER_VULKAN_SYNCHRONIZATION_IMPLEMENTATION
 #include "../../ThirdParty/thsvs_simpler_vulkan_synchronization.h"
@@ -20,40 +21,6 @@ VulkanDevice::VulkanDevice()
 
 VulkanDevice::~VulkanDevice()
 {
-    // if (m_config && *m_config->device != VK_NULL_HANDLE)
-    // {
-    //     VkDevice device = *m_config->device;
-
-    //     if (!m_commandBuffers.empty() && *m_config->commandPool != VK_NULL_HANDLE)
-    //     {
-    //         vkFreeCommandBuffers(device, *m_config->commandPool,
-    //                              static_cast<uint32_t>(m_commandBuffers.size()),
-    //                              m_commandBuffers.data());
-    //     }
-
-    //     for (auto framebuffer : m_viewPortFramebuffers)
-    //     {
-    //         if (framebuffer != VK_NULL_HANDLE)
-    //         {
-    //             vkDestroyFramebuffer(device, framebuffer, nullptr);
-    //         }
-    //     }
-
-    //     if (m_renderPass != VK_NULL_HANDLE)
-    //     {
-    //         vkDestroyRenderPass(device, m_renderPass, nullptr);
-    //     }
-
-    //     for (auto& vp : m_viewPort)
-    //     {
-    //         // if (vp.imageView != VK_NULL_HANDLE)
-    //         //     vkDestroyImageView(device, vp.imageView, nullptr);
-    //         // if (vp.image != VK_NULL_HANDLE)
-    //         //     vkDestroyImage(device, vp.image, nullptr);
-    //         // if (vp.imageMemory != VK_NULL_HANDLE)
-    //         //     vkFreeMemory(device, vp.imageMemory, nullptr);
-    //     }
-    // }
 }
 
 void VulkanDevice::CreateViewPortImage(uint32_t width, uint32_t height)
@@ -326,23 +293,6 @@ void VulkanDevice::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     VkCommandBufferBeginInfo beginInfo {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-    // VkRenderPassBeginInfo renderPassInfo {};
-    // renderPassInfo.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    // renderPassInfo.renderPass        = m_renderPass;
-    // renderPassInfo.framebuffer       = m_viewPortFramebuffers[imageIndex];
-    // renderPassInfo.renderArea.offset = {0, 0};
-
-    // renderPassInfo.renderArea.extent = {m_viewPortWidth, m_viewPortHeight};
-
-    // VkClearValue clearColor        = {{{m_clearColor[0], m_clearColor[1], m_clearColor[2], m_clearColor[3]}}};
-    // renderPassInfo.clearValueCount = 1;
-    // renderPassInfo.pClearValues    = &clearColor;
-
-    // vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-    // vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-    // *m_config->graphicsPipeline);
-
     if (vkBeginCommandBuffer(m_currCmdBuff, &beginInfo) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to begin recording command buffer!");
@@ -375,15 +325,6 @@ void VulkanDevice::updateAndRender(FrameGraph* frameGraph)
         vkWaitForFences(*m_config->device, 1, &m_inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
         vkResetFences(*m_config->device, 1, &m_inFlightFences[currentFrame]);
     }
-
-    // VkCommandBuffer cmdBuf = m_commandBuffers[currentFrame];
-    // vkResetCommandBuffer(cmdBuf, 0);
-    // recordCommandBuffer(cmdBuf, currentFrame);
-
-    // VkSubmitInfo submitInfo {};
-    // submitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    // submitInfo.commandBufferCount = 1;
-    // submitInfo.pCommandBuffers    = &cmdBuf;
 
     m_currCmdBuff = m_commandBuffers[currentFrame];
     vkResetCommandBuffer(m_currCmdBuff, 0);

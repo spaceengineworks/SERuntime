@@ -38,11 +38,8 @@
 
 // TODO:
 //
-//  1. add to populate buffer switch to choose between async and sync.
-//  2. build() FrameGraph.
 //  3. add full G buffer pass.
 //  4. clean all includes \ and ThirdParty files.
-//  5. clean up dead/commented code in VulkanDevice destructor, decide cleanUp() vs dtor
 //  6. need refactor to beginSingleTimeCommands and beginSingleTimeCommands use RAII ( just nest in one { //code  } ).
 //  7. refactor cmake make all submodules dont be dependent from vcpkg.
 //  8. add tracy through own macros make it for debug and release

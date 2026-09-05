@@ -129,7 +129,6 @@ class VulkanDevice : public RHI
         vkCmdBindIndexBuffer(m_currCmdBuff, buffer->buffer, 0, VK_INDEX_TYPE_UINT32);
     }
 
-    // TODO:
     virtual void bindStorageBuffer(void* handle)
     {
         MeshCollection* coll = static_cast<MeshCollection*>(handle);

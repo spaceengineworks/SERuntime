@@ -6,12 +6,10 @@
 #include <span>
 #include <vector>
 
-// clang-format off
 #include "../RHI/Vulkan/VulkanConfig.hpp"
-// clang-format on
-
 #include "BufferManager/IBufferManager.hpp"
 #include "MeshCollection.hpp"
+
 
 namespace SE
 {

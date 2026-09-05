@@ -122,9 +122,6 @@ void FrameGraph::build()
     }
 
     m_executionOrder = std::move(order);
-
-    /* debug */
-    for (auto& pass : m_executionOrder) std::cout << m_passes[pass].m_passName << std::endl;
 }
 
 void FrameGraph::execute()

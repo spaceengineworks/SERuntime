@@ -373,20 +373,6 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
 
     /* all code here simulates like engine acuatly load mesh to scene two main buffer one indices and vertex for MDI draws */
 
-    // const float vertices[] = {-0.4f, -0.4f, -0.3f, -0.4f, 0.4f, -0.3f, 0.4f, 0.4f,  -0.3f,
-
-    //                           -0.4f, -0.4f, -0.3f, 0.4f,  0.4f, -0.3f, 0.4f, -0.4f, -0.3f,
-
-    //                           -0.4f, -0.4f, 0.3f,  -0.4f, 0.4f, 0.3f,  0.4f, 0.4f,  0.3f,
-
-    //                           -0.4f, -0.4f, 0.3f,  0.4f,  0.4f, 0.3f,  0.4f, -0.4f, 0.3f};
-
-    // const uint32_t indices[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-
-    // std::span<const uint8_t> vertexData {reinterpret_cast<const uint8_t*>(vertices), sizeof(vertices)};
-
-    // std::span<const uint8_t> indexData {reinterpret_cast<const uint8_t*>(indices), sizeof(indices)};
-
     ObjMesh mesh = loadObj("C:/Users/ilanv/Downloads/stanford-bunny.obj");
 
     std::span<const uint8_t> vertexData {reinterpret_cast<const uint8_t*>(mesh.vertices.data()), mesh.vertices.size() * sizeof(float)};
@@ -428,8 +414,6 @@ SeResult SERuntime::initViewPort(uint32_t width, uint32_t height)
 
     if (m_descriptorManager->updateDescriptor(s_descId, bindDesc) != SE_SUCCESS)
         std::cout << "updateDescriptor didnt update descriptor" << std::endl;
-
-    // uint32_t idx = collection->addMesh(vertexData, indexData, static_cast<uint32_t>(std::size(indices)), sizeof(float) * 3, 0);
 
     std::cout << idx << std::endl;
 

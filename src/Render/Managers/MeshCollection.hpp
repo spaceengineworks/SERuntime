@@ -7,10 +7,7 @@
 #include <span>
 #include <vector>
 
-// clang-format off
 #include "../RHI/Vulkan/VulkanConfig.hpp"
-// clang-format on
-
 #include "BufferManager/IBufferManager.hpp"
 
 namespace SE
@@ -31,15 +28,6 @@ struct DrawIndexedIndirectCommand
     uint32_t firstIndex    = 0;
     int32_t  vertexOffset  = 0;
     uint32_t firstInstance = 0;
-};
-
-struct alignas(16) Transform
-{
-    // clang-format off
-    glm::vec4 position { 0.0f, 0.0f, 0.0f, 1.0f };
-    glm::vec4 rotation { 0.0f, 0.0f, 0.0f, 1.0f };
-    glm::vec4 scale    { 1.0f, 1.0f, 1.0f, 0.0f };
-    // clang-format on
 };
 
 struct MeshInstanceData
